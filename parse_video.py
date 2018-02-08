@@ -65,6 +65,12 @@ def ParseVideos(videoPath, imagePath, sampleRate, transformFun=None,
             except:
                 print('Can\'t read this frame. Skip')
                 continue
+            
+            #the first dimention should be height
+            if image.shape[0]>image.shape[1]:
+                image = np.swapaxes(image, 0, 1)
+                image = np.fliplr(image)
+            
             #apply transformation
             if transformFun is not None:
                 image = transformFun(image)
@@ -92,8 +98,8 @@ suffix = '.mov'
 #predictionRate needs to be an integer
 #sampleRate needs to be an integer
 
-videoFolder = 'data/test/camera_videos/'
-imageFolder = 'data/test/camera_images/'
+videoFolder = 'data/application/camera_videos/'
+imageFolder = 'data/application/camera_images/'
 
 #make a function that cuts of the black margins of gaze maps
 transformFun = lambda image: cutMargin(image, gazemapSize, cameraSize)
