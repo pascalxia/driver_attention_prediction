@@ -52,8 +52,6 @@ K.set_session(sess)
 #set up placeholders---------------------------
 feature_map_in_seqs = tf.placeholder(tf.float32, shape=(None, None) + args.feature_map_size + (args.feature_map_channels,), 
                              name="feature_map_in_seqs")
-annotation_in_seqs = tf.placeholder(tf.float32, shape=(None, None) + args.gaze_map_size + (1,), 
-                            name="annotation")
 
 
 #set up readout net-----------------
@@ -82,22 +80,14 @@ else:
 pred_annotation = tf.nn.softmax(logits)
 
 
-#set up loss---------------------------------------
-loss, accuracy_loss, reg_loss, spread, kls = \
-    ut.set_losses(logits, 
-                  pred_annotation,
-                  annotation_in_seqs,
-                  args)
-
 #set up data readers-------------------------------
-_, valid_data_points = \
+_, _, test_data_points = \
     data_point_collector.read_datasets(args.data_dir, in_sequences=True)
-validation_dataset_reader = \
-    BatchDatasetReader.BatchDataset(args.data_dir+'validation/',
-                         valid_data_points, 
+test_dataset_reader = \
+    BatchDatasetReader.BatchDataset(args.data_dir+'test/',
+                         test_data_points, 
                          args.image_size,
                          feature_name=args.feature_name)
-
 
 
 #set up savers------------
@@ -118,27 +108,23 @@ if ckpt and ckpt.model_checkpoint_path:
     
     
 #start predicting-------------------------
-validation_losses = []
 n_iteration = np.ceil(len(
-    validation_dataset_reader.data_point_names)/args.batch_size).astype(np.int)
+    test_dataset_reader.data_point_names)/args.batch_size).astype(np.int)
 
 dir_name = args.model_dir+'prediction_iter_'+args.model_iteration+'/'
 if not os.path.isdir(dir_name):
     os.makedirs(dir_name)
     
-dfs = []
+
 for itr in range(n_iteration):
     print('Doing iteration %d/%d' % (itr, n_iteration))
-    batch = validation_dataset_reader.next_batch_in_seqs(batch_size=args.batch_size)
-    valid_feature_maps = validation_dataset_reader.get_feature_maps_in_seqs(batch)
-    valida_annotations = validation_dataset_reader.\
-        get_annotations_in_seqs(batch, desired_size=args.gaze_map_size)
+    batch = test_dataset_reader.next_batch_in_seqs(batch_size=args.batch_size)
+    test_feature_maps = test_dataset_reader.get_feature_maps_in_seqs(batch)
     
-    feed_dict = {feature_map_in_seqs: valid_feature_maps, 
-                 annotation_in_seqs: valida_annotations,
+    feed_dict = {feature_map_in_seqs: test_feature_maps, 
                  K.learning_phase(): 0}
-    [prediction, valid_loss, valid_kls] = sess.run([pred_annotation, loss, kls], 
-                                                   feed_dict=feed_dict)
+    prediction = sess.run(pred_annotation, 
+                          feed_dict=feed_dict)
     #flatten batch
     flat_batch = [data_point for video in batch for data_point in video]
     for i in range(len(prediction)):
@@ -146,21 +132,5 @@ for itr in range(n_iteration):
         prediction_map = prediction[i].reshape(args.gaze_map_size)
         fpath = dir_name + flat_batch[i] + '.jpg'
         misc.imsave(fpath, prediction_map)
-        
-    #save kl-divergences
-    df = pd.DataFrame.from_dict({
-            'fileName': flat_batch,
-            'kl': valid_kls})
-    dfs.append(df)
-    
-    #save loss
-    validation_losses.append(valid_loss)
 
-kl_df = pd.concat(dfs)
-feather.write_dataframe(kl_df, dir_name+'kls.feather')
-
-mean_valid_loss = np.mean(validation_losses)
-with open(dir_name+"mean_validation_loss_%f.txt" % mean_valid_loss, "w") as text_file:
-    text_file.write("Mean validation loss: %f" % mean_valid_loss)
-print('Mean validation loss is %f' % mean_valid_loss)
 
