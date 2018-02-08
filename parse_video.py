@@ -25,14 +25,14 @@ def ParseVideos(videoPath, imagePath, sampleRate, transformFun=None,
     for file in tqdm(os.listdir(videoPath)):
         filename = os.path.join(videoPath, file)
         print(filename)
-        videoId = re.match('[0-9]+', file).group(0)     
+        videoId = filename.split('.')[0]
         if not overwrite:
             if videoId in oldVideoIds:
                 print('skip')
                 continue
         
         try:
-            reader = imageio.get_reader(filename,  'ffmpeg')
+            reader = imageio.get_reader(filename)
         except OSError:
             with open("errors.txt", "a") as myfile:
                 myfile.write(videoId+'\n')
@@ -88,8 +88,6 @@ imageFolder = 'data/test/camera_images/'
 #make a function that cuts of the black margins of gaze maps
 transformFun = lambda image: cutMargin(image, gazemapSize, cameraSize)
 
-if not os.path.isdir(imageFolder):
-    os.makedirs(imageFolder)
 #parse videos
 if sampleRate % predictionRate == 0:
     ParseVideos(videoFolder, imageFolder, sampleRate=sampleRate)
