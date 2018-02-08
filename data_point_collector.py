@@ -34,7 +34,7 @@ def read_datasets(data_dir, in_sequences=False):
     return data_point_names['training'], data_point_names['validation']
 
 
-def get_data_point_names(data_dir, in_sequences=False):
+def get_data_point_names(data_dir, in_sequences=False, predictionRate=3):
     if not os.path.isdir(data_dir):
         print("Data directory '" + data_dir + "' not found.")
         return None
@@ -44,12 +44,7 @@ def get_data_point_names(data_dir, in_sequences=False):
     for directory in directories:
         data_point_dict = {}
         image_path = os.path.join(data_dir, directory, 'camera_images')
-        camera_points = set([f[:-4] for f in os.listdir(image_path) if f.endswith('.jpg')])
-        
-        image_path = os.path.join(data_dir, directory, 'gazemap_images')
-        gazemap_points = set([f[:-4] for f in os.listdir(image_path) if f.endswith('.jpg')])
-    
-        data_points = camera_points.intersection(gazemap_points)
+        data_points = set([f[:-4] for f in os.listdir(image_path) if f.endswith('.jpg')])
         
         if in_sequences:
             data_point_dict = {}
