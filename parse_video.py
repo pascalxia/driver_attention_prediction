@@ -10,10 +10,11 @@ import imageio
 import re
 import numpy as np
 from tqdm import tqdm
+import pdb
 
 
 def ParseVideos(videoPath, imagePath, sampleRate, transformFun=None, 
-                overwrite=False, shift=0):
+                overwrite=False, shift=0, suffix='mov'):
     #shift is in seconds
     
     if not os.path.isdir(imagePath):
@@ -22,10 +23,13 @@ def ParseVideos(videoPath, imagePath, sampleRate, transformFun=None,
     if not overwrite:
         oldVideoIds = [f.split('_')[0] for f in os.listdir(imagePath) if f.endswith('.jpg')]
     
-    for file in tqdm(os.listdir(videoPath)):
+    
+    video_names = [f for f in os.listdir(videoPath) if f.endswith(suffix)]
+    for file in tqdm(video_names):
+        
         filename = os.path.join(videoPath, file)
         print(filename)
-        videoId = filename.split('.')[0]
+        videoId = file.split('.')[0]
         if not overwrite:
             if videoId in oldVideoIds:
                 print('skip')
@@ -37,7 +41,7 @@ def ParseVideos(videoPath, imagePath, sampleRate, transformFun=None,
             with open("errors.txt", "a") as myfile:
                 myfile.write(videoId+'\n')
             continue
-            
+        
         fps = reader.get_meta_data()['fps']
         duration = reader.get_meta_data()['duration']
         nFrame = reader.get_meta_data()['nframes']
@@ -54,9 +58,13 @@ def ParseVideos(videoPath, imagePath, sampleRate, transformFun=None,
             timePoints = (frameIndexes*1000/fps).astype(int)
             nSample = nFrame
         
-        for i in range(nSample):
+        for i in tqdm(range(nSample)):
             #read image
-            image = reader.get_data(frameIndexes[i])
+            try:
+                image = reader.get_data(frameIndexes[i])
+            except:
+                print('Can\'t read this frame. Skip')
+                continue
             #apply transformation
             if transformFun is not None:
                 image = transformFun(image)
@@ -65,6 +73,7 @@ def ParseVideos(videoPath, imagePath, sampleRate, transformFun=None,
             str(timePoints[i]).zfill(5)+'.jpg')
             #write image
             imageio.imwrite(imageName, image)
+        
 
 
 def cutMargin(image, tallSize, wideSize):
@@ -79,6 +88,7 @@ cameraSize = (720, 1280)
 gazemapSize = (768, 1024)
 predictionRate = 3
 sampleRate = 10
+suffix = '.mov'
 #predictionRate needs to be an integer
 #sampleRate needs to be an integer
 
@@ -94,7 +104,8 @@ if sampleRate % predictionRate == 0:
 else:
     for i in range(predictionRate):
         ParseVideos(videoFolder, imageFolder, sampleRate=sampleRate, 
-                    shift=i*1.0/sampleRate/predictionRate)
+                    shift=i*1.0/sampleRate/predictionRate,
+                    overwrite=True)
         
 
 
