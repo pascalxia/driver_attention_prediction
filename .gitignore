@@ -1,3 +1,12 @@
 /*.npy
 .Rproj.user
 errors.txt
+logs
+__pycache__
+data/application/camera_videos/*
+!data/application/camera_videos/.gitkeep
+data/application/image_features_alexnet/*
+data/application/camera_images/*
+data/*.pickle
+*.RData
+.Rhistory
