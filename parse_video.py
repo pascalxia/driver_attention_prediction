@@ -46,6 +46,7 @@ def ParseVideos(videoPath, imagePath, sampleRate, transformFun=None,
         duration = reader.get_meta_data()['duration']
         nFrame = reader.get_meta_data()['nframes']
         
+        
         if sampleRate is not None:
             #calculate the time points in ms to sample frames
             timePoints = np.arange(shift*1000, duration*1000, 1000.0/sampleRate)
@@ -65,11 +66,6 @@ def ParseVideos(videoPath, imagePath, sampleRate, transformFun=None,
             except:
                 print('Can\'t read this frame. Skip')
                 continue
-            
-            #the first dimention should be height
-            if image.shape[0]>image.shape[1]:
-                image = np.swapaxes(image, 0, 1)
-                image = np.fliplr(image)
             
             #apply transformation
             if transformFun is not None:
