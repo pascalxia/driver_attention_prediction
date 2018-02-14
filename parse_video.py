@@ -60,6 +60,14 @@ def ParseVideos(videoPath, imagePath, sampleRate, transformFun=None,
             nSample = nFrame
         
         for i in tqdm(range(nSample)):
+            #make output file name
+            imageName = os.path.join(imagePath, videoId+'_'+\
+                str(timePoints[i]).zfill(5)+'.jpg')
+                
+            if os.path.isfile(imageName):
+                print('Already exist.')
+                continue
+          
             #read image
             try:
                 image = reader.get_data(frameIndexes[i])
@@ -70,9 +78,7 @@ def ParseVideos(videoPath, imagePath, sampleRate, transformFun=None,
             #apply transformation
             if transformFun is not None:
                 image = transformFun(image)
-            #make output file name
-            imageName = os.path.join(imagePath, videoId+'_'+\
-            str(timePoints[i]).zfill(5)+'.jpg')
+            
             #write image
             imageio.imwrite(imageName, image)
         
