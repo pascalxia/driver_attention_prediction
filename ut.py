@@ -400,3 +400,23 @@ def make_turing_moive(camera_images, gazemaps, thresh, fps):
     fovea_clip = camera_clip.set_mask(mask_clip)
     mix_clip = mpy.CompositeVideoClip([blurred_clip, fovea_clip])
     return mix_clip
+
+def resize_feature_map(old_size, new_size, pad_x, pad_y):    
+    #scaling
+    x = np.linspace(-0.5, old_size[1]-0.5, new_size[1]+1)
+    x = x[:-1] + old_size[1]/new_size[1]/2
+    x = np.round(x).astype(int)
+    #padding
+    x = np.concatenate((x, np.repeat(x[-1], pad_x)))
+    
+    #scaling
+    y = np.linspace(-0.5, old_size[0]-0.5, new_size[0]+1)
+    y = y[:-1] + old_size[0]/new_size[0]/2
+    y = np.round(y).astype(int)
+    #padding
+    y = np.concatenate((y, np.repeat(y[-1], pad_y)))
+    
+    xs, ys = np.meshgrid(x, y)
+    #new_map = old_map[ys, xs, :]
+    
+    return xs, ys

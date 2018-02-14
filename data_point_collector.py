@@ -14,9 +14,12 @@ import pickle
 #10_342.jpg
 
 
-def read_datasets(data_dir, in_sequences=False):
+def read_datasets(data_dir, in_sequences=False, keep_prediction_rate=True):
     if in_sequences:
-        pickle_filename = "data_point_names_in_sequences.pickle"
+        if keep_prediction_rate:
+            pickle_filename = "data_point_names_in_sequences.pickle"
+        else:
+            pickle_filename = "data_point_names_in_sequences_for_visualization.pickle"
     else:
         pickle_filename = "data_point_names.pickle"
     
@@ -25,7 +28,7 @@ def read_datasets(data_dir, in_sequences=False):
         directories = ['training', 'validation', 'application']
         data_point_names = {}
         for directory in directories:
-            data_point_names[directory] = get_data_point_names(data_dir+directory+'/', in_sequences)
+            data_point_names[directory] = get_data_point_names(data_dir+directory+'/', in_sequences, keep_prediction_rate)
         print ("Pickling ...")
         with open(pickle_filepath, 'wb') as f:
             pickle.dump(data_point_names, f, pickle.HIGHEST_PROTOCOL)
@@ -37,20 +40,24 @@ def read_datasets(data_dir, in_sequences=False):
     return data_point_names['training'], data_point_names['validation'], data_point_names['application']
 
     
-def get_data_point_names(directory, in_sequences=False, predictionRate=3):
+def get_data_point_names(directory, in_sequences=False, keep_prediction_rate=True, predictionRate=3):
     if not os.path.isdir(directory):
         print("Data directory '" + directory + "' not found.")
         return None
     
     image_path = os.path.join(directory, 'camera_images')
-    data_points = set([f[:-4] for f in os.listdir(image_path) if f.endswith('.jpg')])
+    data_points = [f[:-4] for f in os.listdir(image_path) if f.endswith('.jpg')]
+    data_points.sort()
         
     if in_sequences:
         data_point_dict = {}
         for data_point in data_points:
             video_id = data_point.split('_')[0]
-            timestamp = int(data_point.split('_')[1])
-            group_key = video_id + str(round(timestamp % (1000/predictionRate)))
+            if keep_prediction_rate:
+                timestamp = int(data_point.split('_')[1])
+                group_key = video_id + str(round(timestamp % (1000/predictionRate)))
+            else:
+                group_key = video_id
             
             group = data_point_dict.setdefault(group_key, [])
             group.append(data_point)

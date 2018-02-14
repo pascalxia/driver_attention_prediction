@@ -81,11 +81,11 @@ pred_annotation = tf.nn.softmax(logits)
 
 
 #set up data readers-------------------------------
-_, _, test_data_points = \
+_, _, apply_data_points = \
     data_point_collector.read_datasets(args.data_dir, in_sequences=True)
-test_dataset_reader = \
-    BatchDatasetReader.BatchDataset(args.data_dir+'test/',
-                         test_data_points, 
+apply_dataset_reader = \
+    BatchDatasetReader.BatchDataset(args.data_dir+'application/',
+                         apply_data_points, 
                          args.image_size,
                          feature_name=args.feature_name)
 
@@ -109,7 +109,7 @@ if ckpt and ckpt.model_checkpoint_path:
     
 #start predicting-------------------------
 n_iteration = np.ceil(len(
-    test_dataset_reader.data_point_names)/args.batch_size).astype(np.int)
+    apply_dataset_reader.data_point_names)/args.batch_size).astype(np.int)
 
 dir_name = args.model_dir+'prediction_iter_'+args.model_iteration+'/'
 if not os.path.isdir(dir_name):
@@ -118,10 +118,10 @@ if not os.path.isdir(dir_name):
 
 for itr in range(n_iteration):
     print('Doing iteration %d/%d' % (itr, n_iteration))
-    batch = test_dataset_reader.next_batch_in_seqs(batch_size=args.batch_size)
-    test_feature_maps = test_dataset_reader.get_feature_maps_in_seqs(batch)
+    batch = apply_dataset_reader.next_batch_in_seqs(batch_size=args.batch_size)
+    apply_feature_maps = apply_dataset_reader.get_feature_maps_in_seqs(batch)
     
-    feed_dict = {feature_map_in_seqs: test_feature_maps, 
+    feed_dict = {feature_map_in_seqs: apply_feature_maps, 
                  K.learning_phase(): 0}
     prediction = sess.run(pred_annotation, 
                           feed_dict=feed_dict)
