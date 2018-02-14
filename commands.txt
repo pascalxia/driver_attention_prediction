@@ -1,0 +1,20 @@
+user-docker -v /home/$USER/.imageio:/.imageio tf130_keras \
+python Step0_download_video.py
+
+user-docker -v /home/$USER/.imageio:/.imageio tf130_keras \
+python parse_video.py
+
+user-docker -v /home/$USER/.imageio:/.imageio tf130_keras \
+python make_feature_map_alexnet.py
+
+user-docker -v /home/$USER/.imageio:/.imageio tf130_keras \
+python lstm_prediction.py --batch_size=1 --model_dir=logs/pre-trained/ \
+--feature_name=alexnet \
+--feature_map_channels=256 \
+--model_iteration=10000 \
+--readout=big_conv_lstm \
+--gpu_memory_fraction=0.5
+
+user-docker -v /home/$USER/.imageio:/.imageio tf130_keras \
+python visualization_prediction.py --model_dir=logs/pre-trained/ --model_iteration=10000 \
+--fps=30
