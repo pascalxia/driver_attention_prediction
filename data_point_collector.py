@@ -6,6 +6,7 @@
 import os
 import pickle
 
+
 #data_dir = data/
 #training set directory: data/training/
 #validation set directory: data/validation/
@@ -55,7 +56,10 @@ def get_data_point_names(directory, in_sequences=False, keep_prediction_rate=Tru
             video_id = data_point.split('_')[0]
             if keep_prediction_rate:
                 timestamp = int(data_point.split('_')[1])
-                group_key = video_id + str(round(timestamp % (1000/predictionRate)))
+                predictionInterval = round(1000.0/predictionRate)
+                group_key = video_id + '_' + str(int(round((timestamp%predictionInterval)/10.0))*10)
+                #print(data_point)
+                #print(group_key)
             else:
                 group_key = video_id
             
