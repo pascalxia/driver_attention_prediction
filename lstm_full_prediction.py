@@ -21,6 +21,7 @@ import argparse
 import ut
 import pandas as pd
 import feather
+from tqdm import tqdm
 
 
 #set flags--------------------------
@@ -163,7 +164,7 @@ dir_name = args.model_dir+'prediction_iter_'+args.model_iteration+'/'
 if not os.path.isdir(dir_name):
     os.makedirs(dir_name)
 
-for itr in range(n_iteration):
+for itr in tqdm(range(n_iteration)):
     print('Doing iteration %d/%d' % (itr, n_iteration))
     batch = application_dataset_reader.next_batch_in_seqs(batch_size=args.batch_size)
     apply_input_images = application_dataset_reader.get_images_in_seqs(batch)
