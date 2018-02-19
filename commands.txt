@@ -18,3 +18,12 @@ python lstm_prediction.py --batch_size=1 --model_dir=logs/pre-trained/ \
 user-docker -v /home/$USER/.imageio:/.imageio tf130_keras \
 python visualization_prediction.py --model_dir=logs/pre-trained/ --model_iteration=10000 \
 --fps=30
+
+
+
+user-docker -v /home/$USER/.imageio:/.imageio tf130_keras \
+python lstm_full_prediction.py --batch_size=1 --model_dir=logs/pre-trained/ \
+--encoder=alex \
+--model_iteration=10000 \
+--readout=big_conv_lstm \
+--gpu_memory_fraction=0.5
