@@ -5,6 +5,7 @@
 
 import os
 import pickle
+#import pdb
 
 
 #data_dir = data/
@@ -15,7 +16,7 @@ import pickle
 #10_342.jpg
 
 
-def read_datasets(data_dir, in_sequences=False, keep_prediction_rate=True):
+def read_datasets(data_dir, in_sequences=False, keep_prediction_rate=True, longest_seq=None):
     if in_sequences:
         if keep_prediction_rate:
             pickle_filename = "data_point_names_in_sequences.pickle"
@@ -41,7 +42,7 @@ def read_datasets(data_dir, in_sequences=False, keep_prediction_rate=True):
     return data_point_names['training'], data_point_names['validation'], data_point_names['application']
 
     
-def get_data_point_names(directory, in_sequences=False, keep_prediction_rate=True, predictionRate=3):
+def get_data_point_names(directory, in_sequences=False, keep_prediction_rate=True, predictionRate=3, longest_seq=None):
     if not os.path.isdir(directory):
         print("Data directory '" + directory + "' not found.")
         return None
@@ -70,8 +71,32 @@ def get_data_point_names(directory, in_sequences=False, keep_prediction_rate=Tru
     else:
         data_point_names = list(data_points)
         
+    if longest_seq is not None:
+        #avoid sequences that are too long to avoid memory error
+        size_threshold = longest_seq
+        data_point_names = crop_long_seqs(data_point_names, size_threshold)
+    
     no_of_videos = len(data_point_names)
     print ('No. of %s videos: %d' % (directory, no_of_videos))
     
     return data_point_names
     
+
+
+def crop_long_seqs(data_point_names, size_threshold):
+    #pdb.set_trace()
+    sizes = [len(seq) for seq in data_point_names]
+    long_indices = [i for i,size in enumerate(sizes) if size>size_threshold]
+    if len(long_indices) == 0:
+        return data_point_names
+        
+    for i in long_indices:
+        seq = data_point_names[i]
+        data_point_names.append(seq[size_threshold+1:])
+        data_point_names[i] = seq[:size_threshold]
+    return crop_long_seqs(data_point_names, size_threshold)
+        
+        
+        
+        
+        
