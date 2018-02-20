@@ -238,7 +238,12 @@ def add_args_for_lstm(parser):
      'name': 'n_steps',
      'default': None,
      'type': int,
-     'help': 'number of time steps for each sequence'}
+     'help': 'number of time steps for each sequence'},
+     {
+     'name': 'longest_seq',
+     'default': None,
+     'type': int,
+     'help': 'How many frames can the longest sequence contain'}
     ]
     add_args(args, parser)
 
