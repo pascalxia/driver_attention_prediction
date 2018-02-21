@@ -30,7 +30,7 @@ def read_datasets(data_dir, in_sequences=False, keep_prediction_rate=True, longe
         directories = ['training', 'validation', 'application']
         data_point_names = {}
         for directory in directories:
-            data_point_names[directory] = get_data_point_names(data_dir+directory+'/', in_sequences, keep_prediction_rate)
+            data_point_names[directory] = get_data_point_names(data_dir+directory+'/', in_sequences, keep_prediction_rate, longest_seq=longest_seq)
         print ("Pickling ...")
         with open(pickle_filepath, 'wb') as f:
             pickle.dump(data_point_names, f, pickle.HIGHEST_PROTOCOL)
@@ -84,7 +84,6 @@ def get_data_point_names(directory, in_sequences=False, keep_prediction_rate=Tru
 
 
 def crop_long_seqs(data_point_names, size_threshold):
-    #pdb.set_trace()
     sizes = [len(seq) for seq in data_point_names]
     long_indices = [i for i,size in enumerate(sizes) if size>size_threshold]
     if len(long_indices) == 0:
