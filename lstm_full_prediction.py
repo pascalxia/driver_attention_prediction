@@ -22,6 +22,7 @@ import ut
 import pandas as pd
 import feather
 from tqdm import tqdm
+import pdb
 
 
 #set flags--------------------------
@@ -163,10 +164,21 @@ n_iteration = np.ceil(len(
 dir_name = args.model_dir+'prediction_iter_'+args.model_iteration+'/'
 if not os.path.isdir(dir_name):
     os.makedirs(dir_name)
+    
+#skip images already created
+finished_data_points = [f[:-4] for f in os.listdir(dir_name) if f.endswith('.jpg')]
 
 for itr in tqdm(range(n_iteration)):
     print('Doing iteration %d/%d' % (itr, n_iteration))
     batch = application_dataset_reader.next_batch_in_seqs(batch_size=args.batch_size)
+    
+    #if the first image of this batch has already a prediction
+    if len(batch)==0 or len(batch[0])==0:
+        pdb.set_trace()
+    if batch[0][0] in finished_data_points:
+        print('prediction already exists')
+        continue
+      
     apply_input_images = application_dataset_reader.get_images_in_seqs(batch)
     
     feed_dict = {input_image_in_seqs: apply_input_images, 
