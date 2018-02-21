@@ -82,29 +82,20 @@ def ParseVideos(videoPath, imagePath, sampleRate, transformFun=None,
             #write image
             imageio.imwrite(imageName, image)
         
-
-
-def cutMargin(image, tallSize, wideSize):
-    newHeight = float(tallSize[1])/wideSize[1]*wideSize[0]
-    marginTop = int(round((tallSize[0] - newHeight)/2.0))
-    marginBottom = tallSize[0] - marginTop
-    return(image[marginTop:marginBottom, :, :])
     
             
 #set parameters
-cameraSize = (720, 1280)
-gazemapSize = (768, 1024)
-predictionRate = 3
 sampleRate = 10
 suffix = '.mov'
-#predictionRate needs to be an integer
-#sampleRate needs to be an integer
+#sampleRate is in Hz. sampleRate needs to be an integer
+
+
+predictionRate = 3
+#predictionRate should be set to 3
 
 videoFolder = 'data/application/camera_videos/'
 imageFolder = 'data/application/camera_images/'
 
-#make a function that cuts of the black margins of gaze maps
-transformFun = lambda image: cutMargin(image, gazemapSize, cameraSize)
 
 #parse videos
 if sampleRate % predictionRate == 0:
