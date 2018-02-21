@@ -123,7 +123,7 @@ pred_annotation = tf.nn.softmax(logits)
 
 #set up data readers-------------------------------
 _, _, apply_data_points = \
-    data_point_collector.read_datasets(args.data_dir, in_sequences=True)
+    data_point_collector.read_datasets(args.data_dir, in_sequences=True, longest_seq=args.longest_seq)
 application_dataset_reader = \
     BatchDatasetReader.BatchDataset(args.data_dir+'application/',
                                                                 apply_data_points, 
