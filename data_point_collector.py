@@ -8,6 +8,7 @@ import pickle
 #import pdb
 
 
+
 #data_dir = data/
 #training set directory: data/training/
 #validation set directory: data/validation/
@@ -70,7 +71,7 @@ def get_data_point_names(directory, in_sequences=False, keep_prediction_rate=Tru
             list(data_point_dict.values())
     else:
         data_point_names = list(data_points)
-        
+    
     if longest_seq is not None:
         #avoid sequences that are too long to avoid memory error
         size_threshold = longest_seq
@@ -91,7 +92,7 @@ def crop_long_seqs(data_point_names, size_threshold):
         
     for i in long_indices:
         seq = data_point_names[i]
-        data_point_names.append(seq[size_threshold+1:])
+        data_point_names.append(seq[size_threshold:])
         data_point_names[i] = seq[:size_threshold]
     return crop_long_seqs(data_point_names, size_threshold)
         
