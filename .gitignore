@@ -1,7 +1,8 @@
 /*.npy
 .Rproj.user
 errors.txt
-logs
+logs/*
+!logs/.gitkeep
 __pycache__
 data/application/camera_videos/*
 !data/application/camera_videos/.gitkeep
