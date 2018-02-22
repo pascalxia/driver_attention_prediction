@@ -9,7 +9,9 @@ This project accompanies the paper **_Training a network to attend like human dr
 ![Demo image](wiki_images/demo.jpg)
 
 ### Video demos 
-https://youtu.be/IcAtJ0CvYuQ
+<a href="http://www.youtube.com/watch?feature=player_embedded&v=IcAtJ0CvYuQ" target="_blank">
+     <img src="http://img.youtube.com/vi/IcAtJ0CvYuQ/0.jpg" alt="Video demo cover" width="480" height="270" border="10" />
+</a>
 
 ## Using Our Code:
 ### Installation
