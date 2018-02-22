@@ -5,13 +5,15 @@
 This project accompanies the paper **_Training a network to attend like human drivers saves it from common but misleading loss functions_** (https://arxiv.org/abs/1711.06406)
 
 ## Demo:
-
 ![Demo image](wiki_images/demo.jpg)
 
 ### Video demos 
 <a href="http://www.youtube.com/watch?feature=player_embedded&v=IcAtJ0CvYuQ" target="_blank">
      <img src="http://img.youtube.com/vi/IcAtJ0CvYuQ/0.jpg" alt="Video demo cover" width="480" height="270" border="10" />
 </a>
+
+### Model structure
+![Model structure image](wiki_images/structure2.png)
 
 ## Using Our Code:
 ### Installation
