@@ -5,7 +5,7 @@
 This project accompanies the paper https://arxiv.org/abs/1711.06406
 
 ##Demo
-![alt text](https://raw.githubusercontent.com/pascalxia/driver_attention_prediction/master/wiki_images/demo.jpg "Demo Image")
+![Demo image](wiki_images/demo.jpg)
 
 Videos: https://youtu.be/IcAtJ0CvYuQ
 
