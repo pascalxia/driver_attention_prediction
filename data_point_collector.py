@@ -65,25 +65,35 @@ def get_data_point_names(directory, in_sequences=False, keep_prediction_rate=Tru
         numGroups = sampleRate
 
     if in_sequences:
-        data_point_dict = {}
-
-        # Assign each frame a group number indicating which set it will be
-        # trained in. For example, if the desired rate is 4 Hz, we would sample
-        # 4x3=12 frames, then train 4 different groups at the default 3 Hz
-        # to get data for each frame.
-        group_num = 0
-
+        # group data points according to video_id
+        group_by_video = {}
         for data_point in data_points:
             video_id = data_point.split('_')[0]
-            if keep_prediction_rate:
-                group_key = group_num
-                group_num = (group_num + 1) % numGroups
-            else:
-                group_key = video_id
-
-            group = data_point_dict.setdefault(group_key, [])
+            group = group_by_video.setdefault(video_id, [])
             group.append(data_point)
+            
+        group_by_video = list(group_by_video.values())
+        
+        
+        if keep_prediction_rate:
+            # Assign each frame a group number indicating which set it will be
+            # trained in. For example, if the desired rate is 4 Hz, we would sample
+            # 4x3=12 frames, then train 4 different groups at the default 3 Hz
+            # to get data for each frame.
+            data_point_dict = {}
+            group_num = 0
+          
+            for video in group_by_video:
+                video_id = video[0].split('_')[0]
+                for data_point in video:
+                    group_key = video_id + '_' + str(int(group_num))
+                    group_num = (group_num + 1) % numGroups
 
+                    group = data_point_dict.setdefault(group_key, [])
+                    group.append(data_point)
+        else:
+            data_point_dict = group_by_video
+        
         data_point_names = \
             list(data_point_dict.values())
     else:
