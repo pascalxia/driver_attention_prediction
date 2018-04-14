@@ -18,21 +18,20 @@ def model_fn(features, labels, mode, params):
   camera = features['camera']
   feature_map = features['feature_map']
   gazemap = features['gazemap']
+  labels = tf.reshape(labels, (-1, 36*64))
   
-  tf.summary.image('camera', camera, max_outputs=4)
-  tf.summary.image('gazemap', gazemap, max_outputs=4)
+  tf.summary.image('camera', tf.reshape(camera, (-1,576,1024,3)), max_outputs=4)
+  tf.summary.image('gazemap', tf.reshape(gazemap, (-1,36,64,1)), max_outputs=4)
   
-  if mode == tf.estimator.ModeKeys.PREDICT:
-    return tf.estimator.EstimatorSpec(
-        mode=tf.estimator.ModeKeys.PREDICT,
-        predictions=feature_map)
-  
-  logits = networks.readout_net(feature_map, (36,64), 0.2)
+  logits = networks.big_conv_lstm_readout_net(feature_map, 
+                                              feature_map_size=(36,64), 
+                                              drop_rate=0.2)
 
   if mode == tf.estimator.ModeKeys.TRAIN:
     optimizer = tf.train.AdamOptimizer(learning_rate=LEARNING_RATE)
 
     loss = tf.losses.softmax_cross_entropy(onehot_labels=labels, logits=logits)
+    #TODO: write correlation coefficient as a accuracy metric
     accuracy = tf.identity(loss)
 
     # Name tensors to be logged with LoggingTensorHook.
@@ -41,8 +40,8 @@ def model_fn(features, labels, mode, params):
     tf.identity(accuracy, name='train_accuracy')
 
     # Save accuracy scalar to Tensorboard output.
-    #tf.summary.scalar('train_accuracy', accuracy)
-    tf.summary.scalar('test_test', accuracy)
+    tf.summary.scalar('train_accuracy', accuracy)
+
 
     return tf.estimator.EstimatorSpec(
         mode=tf.estimator.ModeKeys.TRAIN,
@@ -56,22 +55,23 @@ def train_input_fn(params):
   """Prepare data for training."""
   
   file_names = [f for f in os.listdir(params.data_folder) if f.endswith('.tfrecords')]
-  
-  dataset = tf.data.Dataset.from_tensor_slices([params.data_folder+f for f in file_names])
-  dataset = dataset.flat_map(tf.data.TFRecordDataset)
+  dataset = tf.data.TFRecordDataset([params.data_folder+f for f in file_names])
   
   def _parse_function(example_proto):
-    feature_info = {'camera': tf.FixedLenFeature((), tf.string, default_value=''),
-                    'feature_map': tf.FixedLenFeature((), tf.string, default_value=''),
-                    'gazemap': tf.FixedLenFeature((), tf.string, default_value='')}
+    feature_info = {'camera': tf.VarLenFeature(dtype=tf.string),
+                    'feature_map': tf.VarLenFeature(dtype=tf.string),
+                    'gazemap': tf.VarLenFeature(dtype=tf.string)}
     parsed_features = tf.parse_single_example(example_proto, feature_info)
     
-    camera = tf.reshape(tf.decode_raw(parsed_features["camera"], tf.uint8), (720,1280,3))
-    feature_map = tf.reshape(tf.decode_raw(parsed_features["feature_map"], tf.float32), (36,64,256))
-    gazemap = tf.reshape(tf.decode_raw(parsed_features["gazemap"], tf.uint8), (576,1024,1))
+    for key in parsed_features:
+      parsed_features[key] = tf.sparse_tensor_to_dense(parsed_features[key], default_value='')
+    
+    camera = tf.reshape(tf.decode_raw(parsed_features["camera"], tf.uint8), (-1, 576, 1024, 3))
+    feature_map = tf.reshape(tf.decode_raw(parsed_features["feature_map"], tf.float32), (-1,36,64,256))
+    gazemap = tf.reshape(tf.decode_raw(parsed_features["gazemap"], tf.uint8), (-1,36,64,1))
     
     labels = tf.cast(gazemap, tf.float32)
-    labels = tf.image.resize_images(labels, (36,64), method=tf.image.ResizeMethod.AREA)
+    #labels = tf.image.resize_images(labels, (36,64), method=tf.image.ResizeMethod.AREA)
     labels = tf.reshape(labels, (-1,))
     labels = labels/tf.reduce_sum(labels)
     
@@ -79,8 +79,6 @@ def train_input_fn(params):
     features['camera'] = camera
     features['feature_map'] = feature_map
     features['gazemap'] = gazemap
-    
-    parsed_features["gazemap"] = tf.reshape(tf.decode_raw(parsed_features["gazemap"], tf.uint8), (576,1024))    
     
     return features, labels
     
