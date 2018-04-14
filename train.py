@@ -60,6 +60,7 @@ def train_input_fn(params):
   dataset = tf.data.Dataset.zip( (camera_gaze_dataset, image_feature_dataset) )
   
   def _parse_function(camera_gaze_example, image_feautre_example):
+    # parsing
     feature_info = {'camera': tf.VarLenFeature(dtype=tf.string),
                     'gazemap': tf.VarLenFeature(dtype=tf.string)}
     parsed_features = tf.parse_single_example(camera_gaze_example, feature_info)
@@ -72,15 +73,19 @@ def train_input_fn(params):
     for key in parsed_features:
       parsed_features[key] = tf.sparse_tensor_to_dense(parsed_features[key], default_value='')
     
+    # reshaping
     camera = tf.reshape(tf.decode_raw(parsed_features["camera"], tf.uint8), (-1, 576, 1024, 3))
     feature_map = tf.reshape(tf.decode_raw(parsed_features["feature_map"], tf.float32), (-1,36,64,256))
     gazemap = tf.reshape(tf.decode_raw(parsed_features["gazemap"], tf.uint8), (-1,36,64,1))
     
+    # normalizing gazemap into probability distribution
     labels = tf.cast(gazemap, tf.float32)
     #labels = tf.image.resize_images(labels, (36,64), method=tf.image.ResizeMethod.AREA)
-    labels = tf.reshape(labels, (-1,))
-    labels = labels/tf.reduce_sum(labels)
+    labels = tf.reshape(labels, (-1, 36*64))
+    labels = labels/tf.reduce_sum(labels, axis=1)
+    assert np.sum(labels[0])==1
     
+    # return features and labels
     features = {}
     features['camera'] = camera
     features['feature_map'] = feature_map
