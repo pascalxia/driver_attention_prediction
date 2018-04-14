@@ -55,13 +55,19 @@ def train_input_fn(params):
   """Prepare data for training."""
   
   file_names = [f for f in os.listdir(params.data_folder) if f.endswith('.tfrecords')]
-  dataset = tf.data.TFRecordDataset([params.data_folder+f for f in file_names])
+  camera_gaze_dataset = tf.data.TFRecordDataset(params.data_folder+'camera_gaze.tfrecords')
+  image_feature_dataset = tf.data.TFRecordDataset(params.data_folder+'image_features_alexnet.tfrecords')
+  dataset = tf.data.Dataset.zip( (camera_gaze_dataset, image_feature_dataset) )
   
-  def _parse_function(example_proto):
+  def _parse_function(camera_gaze_example, image_feautre_example):
     feature_info = {'camera': tf.VarLenFeature(dtype=tf.string),
-                    'feature_map': tf.VarLenFeature(dtype=tf.string),
                     'gazemap': tf.VarLenFeature(dtype=tf.string)}
-    parsed_features = tf.parse_single_example(example_proto, feature_info)
+    parsed_features = tf.parse_single_example(camera_gaze_example, feature_info)
+    
+    feature_info = {'feature_map': tf.VarLenFeature(dtype=tf.string)}
+    additional_features = tf.parse_single_example(image_feautre_example, feature_info)
+    
+    parsed_features.update(additional_features)
     
     for key in parsed_features:
       parsed_features[key] = tf.sparse_tensor_to_dense(parsed_features[key], default_value='')
