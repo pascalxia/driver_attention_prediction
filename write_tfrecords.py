@@ -15,10 +15,14 @@ def _bytes_feature(value):
     return tf.train.Feature(bytes_list=tf.train.BytesList(value=[value]))
 
 data_folder = 'example_data/application/'
-camera_folder = 'example_data/application/camera_images/'
-feature_folder = 'example_data/application/image_features_alexnet/'
-gazemap_folder = 'example_data/application/gazemap_images/'
-tfrecord_folder = 'example_data/tfrecords/'
+
+camera_folder = data_folder + 'camera_images/'
+feature_folder = data_folder + 'image_features_alexnet/'
+gazemap_folder = data_folder + 'gazemap_images/'
+tfrecord_folder = data_folder + 'tfrecords/'
+
+if not os.path.isdir(tfrecord_folder):
+    os.makedirs(rfrecord_folder)
 
 data_point_names = dpc.get_data_point_names(data_folder, in_sequences=True)
 
