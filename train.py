@@ -7,7 +7,10 @@ import tensorflow as tf
 
 import networks
 
+import add_args
+
 import pdb
+
 
 
 
@@ -15,15 +18,15 @@ LEARNING_RATE = 1e-3
 
 def model_fn(features, labels, mode, params):
   """The model_fn argument for creating an Estimator."""
-  camera = features['camera']
-  feature_map = features['feature_map']
-  gazemap = features['gazemap']
+  cameras = features['cameras']
+  feature_maps = features['feature_maps']
+  gazemaps = features['gazemaps']
   labels = tf.reshape(labels, (-1, 36*64))
   
-  tf.summary.image('camera', tf.reshape(camera, (-1,576,1024,3)), max_outputs=4)
-  tf.summary.image('gazemap', tf.reshape(gazemap, (-1,36,64,1)), max_outputs=4)
+  tf.summary.image('cameras', tf.reshape(cameras, (-1,576,1024,3)), max_outputs=6)
+  tf.summary.image('gazemaps', tf.reshape(gazemaps, (-1,36,64,1)), max_outputs=6)
   
-  logits = networks.big_conv_lstm_readout_net(feature_map, 
+  logits = networks.big_conv_lstm_readout_net(feature_maps, 
                                               feature_map_size=(36,64), 
                                               drop_rate=0.2)
 
@@ -51,51 +54,52 @@ def model_fn(features, labels, mode, params):
 
 
 # Set up training and evaluation input functions.
-def train_input_fn(params):
+def train_input_fn(args):
   """Prepare data for training."""
   
-  file_names = [f for f in os.listdir(params.data_folder) if f.endswith('.tfrecords')]
-  camera_gaze_dataset = tf.data.TFRecordDataset(params.data_folder+'camera_gaze.tfrecords')
-  image_feature_dataset = tf.data.TFRecordDataset(params.data_folder+'image_features_alexnet.tfrecords')
+  camera_gaze_dataset = tf.data.TFRecordDataset(os.path.join(args.data_dir,'tfrecords','cameras_gazes.tfrecords'))
+  image_feature_dataset = tf.data.TFRecordDataset(os.path.join(args.data_dir,'tfrecords','image_features_alexnet.tfrecords'))
   dataset = tf.data.Dataset.zip( (camera_gaze_dataset, image_feature_dataset) )
-  
+
   def _parse_function(camera_gaze_example, image_feautre_example):
     # parsing
-    feature_info = {'camera': tf.VarLenFeature(dtype=tf.string),
-                    'gazemap': tf.VarLenFeature(dtype=tf.string)}
-    parsed_features = tf.parse_single_example(camera_gaze_example, feature_info)
+    feature_info = {'cameras': tf.FixedLenSequenceFeature(shape=[], dtype=tf.string),
+                    'gazemaps': tf.FixedLenSequenceFeature(shape=[], dtype=tf.string)}
+    _, parsed_features = tf.parse_single_sequence_example(camera_gaze_example, sequence_features=feature_info)
     
-    feature_info = {'feature_map': tf.VarLenFeature(dtype=tf.string)}
-    additional_features = tf.parse_single_example(image_feautre_example, feature_info)
+    feature_info = {'feature_maps': tf.FixedLenSequenceFeature(shape=[], dtype=tf.string)}
+    _, additional_features = tf.parse_single_sequence_example(image_feautre_example, sequence_features=feature_info)
     
     parsed_features.update(additional_features)
-    
-    for key in parsed_features:
-      parsed_features[key] = tf.sparse_tensor_to_dense(parsed_features[key], default_value='')
+
     
     # reshaping
-    camera = tf.reshape(tf.decode_raw(parsed_features["camera"], tf.uint8), (-1, 576, 1024, 3))
-    feature_map = tf.reshape(tf.decode_raw(parsed_features["feature_map"], tf.float32), (-1,36,64,256))
-    gazemap = tf.reshape(tf.decode_raw(parsed_features["gazemap"], tf.uint8), (-1,36,64,1))
+    cameras = tf.reshape(tf.decode_raw(parsed_features["cameras"], tf.uint8), (-1, 576, 1024, 3))
+    feature_maps = tf.reshape(tf.decode_raw(parsed_features["feature_maps"], tf.float32), (-1,36,64,256))
+    gazemaps = tf.reshape(tf.decode_raw(parsed_features["gazemaps"], tf.uint8), (-1,36,64,1))
     
     # normalizing gazemap into probability distribution
-    labels = tf.cast(gazemap, tf.float32)
+    labels = tf.cast(gazemaps, tf.float32)
     #labels = tf.image.resize_images(labels, (36,64), method=tf.image.ResizeMethod.AREA)
     labels = tf.reshape(labels, (-1, 36*64))
-    labels = labels/tf.reduce_sum(labels, axis=1)
-    assert np.sum(labels[0])==1
+    labels = tf.matmul(tf.diag(1/tf.reduce_sum(labels,axis=1)), labels)
+    #labels = labels/tf.reduce_sum(labels, axis=1)
+
     
     # return features and labels
     features = {}
-    features['camera'] = camera
-    features['feature_map'] = feature_map
-    features['gazemap'] = gazemap
+    features['cameras'] = cameras
+    features['feature_maps'] = feature_maps
+    features['gazemaps'] = gazemaps
     
     return features, labels
-    
+  
   dataset = dataset.map(_parse_function)
   
-  dataset = dataset.batch(4)
+  dataset = dataset.padded_batch(args.batch_size, padded_shapes=({'cameras': [None,576, 1024, 3],
+                                                                  'feature_maps': [None,36,64,256],
+                                                                  'gazemaps': [None,36,64,1]},
+                                                                 [None,36*64]))
   
   dataset = dataset.repeat()
   
@@ -105,24 +109,36 @@ def train_input_fn(params):
 def main(argv):
   
   parser = argparse.ArgumentParser()
-  params = parser.parse_args()
-  params.data_folder = 'example_data/tfrecords/'
-  params.model_dir = 'estimator_logs/'
+  add_args.for_general(parser)
+  add_args.for_inference(parser)
+  add_args.for_feature(parser)
+  add_args.for_training(parser)
+  add_args.for_lstm(parser)
+  args = parser.parse_args()
+  
+  '''
+  ds = train_input_fn(args)
+  iterator = ds.make_one_shot_iterator()
+  next_element = iterator.get_next()
+  sess = tf.Session()
+  pdb.set_trace()
+  res = sess.run(next_element)
+  '''
   
   model = tf.estimator.Estimator(
     model_fn=model_fn,
-    model_dir=params.model_dir)
+    model_dir=args.model_dir)
   
   #pdb.set_trace()
-  #predict_generator = model.predict(input_fn = lambda: train_input_fn(params))
+  #predict_generator = model.predict(input_fn = lambda: train_input_fn(args))
   #res = next(predict_generator)
   
   # Train and evaluate model.
-  model.train(input_fn=lambda: train_input_fn(params))
+  model.train(input_fn=lambda: train_input_fn(args))
   
   #pdb.set_trace()
   
-  #model.train(input_fn=lambda: train_input_fn(params))
+  #model.train(input_fn=lambda: train_input_fn(args))
 
     
 
