@@ -78,6 +78,15 @@ def train_input_fn(args):
     feature_maps = tf.reshape(tf.decode_raw(parsed_features["feature_maps"], tf.float32), (-1,36,64,256))
     gazemaps = tf.reshape(tf.decode_raw(parsed_features["gazemaps"], tf.uint8), (-1,36,64,1))
     
+    #select a subsequence
+    length = tf.shape(cameras)[0]
+    #pdb.set_trace()
+    offset = tf.random_uniform(shape=[], minval=0, maxval=tf.maximum(length-args.n_steps+1, 1), dtype=tf.int32)
+    end = tf.minimum(offset+args.n_steps, length)
+    cameras = cameras[offset:end]
+    feature_maps = feature_maps[offset:end]
+    gazemaps = gazemaps[offset:end]
+    
     # normalizing gazemap into probability distribution
     labels = tf.cast(gazemaps, tf.float32)
     #labels = tf.image.resize_images(labels, (36,64), method=tf.image.ResizeMethod.AREA)
@@ -125,9 +134,13 @@ def main(argv):
   res = sess.run(next_element)
   '''
   
+  config = tf.estimator.RunConfig(save_summary_steps=10,
+                                  log_step_count_steps=10)
+  
   model = tf.estimator.Estimator(
     model_fn=model_fn,
-    model_dir=args.model_dir)
+    model_dir=args.model_dir,
+    config=config)
   
   #pdb.set_trace()
   #predict_generator = model.predict(input_fn = lambda: train_input_fn(args))
