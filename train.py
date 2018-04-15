@@ -23,7 +23,7 @@ def model_fn(features, labels, mode, params):
   gazemaps = features['gazemaps']
   labels = tf.reshape(labels, (-1, 36*64))
   
-  tf.summary.image('cameras', tf.reshape(cameras, (-1,576,1024,3)), max_outputs=6)
+  tf.summary.image('cameras', tf.reshape(cameras, (-1,36,64,3)), max_outputs=6)
   tf.summary.image('gazemaps', tf.reshape(gazemaps, (-1,36,64,1)), max_outputs=6)
   
   logits = networks.big_conv_lstm_readout_net(feature_maps, 
@@ -57,24 +57,19 @@ def model_fn(features, labels, mode, params):
 def train_input_fn(args):
   """Prepare data for training."""
   
-  camera_gaze_dataset = tf.data.TFRecordDataset(os.path.join(args.data_dir,'tfrecords','cameras_gazes.tfrecords'))
-  image_feature_dataset = tf.data.TFRecordDataset(os.path.join(args.data_dir,'tfrecords','image_features_alexnet.tfrecords'))
-  dataset = tf.data.Dataset.zip( (camera_gaze_dataset, image_feature_dataset) )
+  dataset = tf.data.TFRecordDataset(os.path.join(args.data_dir,'tfrecords','cameras_gazes_alexnet_features.tfrecords'))
+  #image_feature_dataset = tf.data.TFRecordDataset(os.path.join(args.data_dir,'tfrecords','image_features_alexnet.tfrecords'))
+  #dataset = tf.data.Dataset.zip( (camera_gaze_dataset, image_feature_dataset) )
 
-  def _parse_function(camera_gaze_example, image_feautre_example):
+  def _parse_function(example):
     # parsing
     feature_info = {'cameras': tf.FixedLenSequenceFeature(shape=[], dtype=tf.string),
+                    'feature_maps': tf.FixedLenSequenceFeature(shape=[], dtype=tf.string),
                     'gazemaps': tf.FixedLenSequenceFeature(shape=[], dtype=tf.string)}
-    _, parsed_features = tf.parse_single_sequence_example(camera_gaze_example, sequence_features=feature_info)
-    
-    feature_info = {'feature_maps': tf.FixedLenSequenceFeature(shape=[], dtype=tf.string)}
-    _, additional_features = tf.parse_single_sequence_example(image_feautre_example, sequence_features=feature_info)
-    
-    parsed_features.update(additional_features)
-
+    _, parsed_features = tf.parse_single_sequence_example(example, sequence_features=feature_info)
     
     # reshaping
-    cameras = tf.reshape(tf.decode_raw(parsed_features["cameras"], tf.uint8), (-1, 576, 1024, 3))
+    cameras = tf.reshape(tf.decode_raw(parsed_features["cameras"], tf.uint8), (-1, 36, 64, 3))
     feature_maps = tf.reshape(tf.decode_raw(parsed_features["feature_maps"], tf.float32), (-1,36,64,256))
     gazemaps = tf.reshape(tf.decode_raw(parsed_features["gazemaps"], tf.uint8), (-1,36,64,1))
     
@@ -105,7 +100,7 @@ def train_input_fn(args):
   
   dataset = dataset.map(_parse_function)
   
-  dataset = dataset.padded_batch(args.batch_size, padded_shapes=({'cameras': [None,576, 1024, 3],
+  dataset = dataset.padded_batch(args.batch_size, padded_shapes=({'cameras': [None,36, 64, 3],
                                                                   'feature_maps': [None,36,64,256],
                                                                   'gazemaps': [None,36,64,1]},
                                                                  [None,36*64]))
