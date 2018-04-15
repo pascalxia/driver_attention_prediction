@@ -149,8 +149,7 @@ def for_training(parser):
      'name': 'logs_dir',
      'default': None,
      'type': str,
-     'help': 'path to logs directory',
-     'required': True},
+     'help': 'path to logs directory'},
     {
      'name': 'weight_data',
      'default': False,
