@@ -31,35 +31,34 @@ if not os.path.isdir(tfrecord_folder):
 
 data_point_names = dpc.get_data_point_names(args.data_dir, in_sequences=True)
 
-with tf.python_io.TFRecordWriter(os.path.join(tfrecord_folder, "camera_gaze.tfrecords")) as writer:
+with tf.python_io.TFRecordWriter(os.path.join(tfrecord_folder, "cameras_gazes.tfrecords")) as writer:
     for seq in tqdm(data_point_names):
-        camera      = list()
-        gazemap     = list()
+        camera_features = list()
+        gazemap_features = list()
         for f in seq:
-            img = cv2.imread(os.path.join(camera_folder,f+'.jpg'))[:,:,[2,1,0]]
-            img = cv2.resize(img, (1024,576), interpolation=cv2.INTER_LINEAR)
-            camera     .append(img)
+            camera = cv2.imread(os.path.join(camera_folder,f+'.jpg'))[:,:,[2,1,0]]
+            camera = cv2.resize(camera, (1024,576), interpolation=cv2.INTER_LINEAR)
+            camera_features.append(_bytes_feature(camera.tostring()))
 
-            img = cv2.imread(os.path.join(gazemap_folder, f+'.jpg'))[:,:,0]
-            img = cv2.resize(img, (64,36), interpolation=cv2.INTER_AREA)
-            gazemap    .append(img)
+            gazemap = cv2.imread(os.path.join(gazemap_folder, f+'.jpg'))[:,:,0]
+            gazemap = cv2.resize(gazemap, (64,36), interpolation=cv2.INTER_AREA)
+            gazemap_features.append(_bytes_feature(gazemap.tostring()))
         
-        camera      = np.array(camera)
-        gazemap     = np.array(gazemap)
-        feature = { 'camera':      _bytes_feature(camera.tostring()),
-                    'gazemap':     _bytes_feature(gazemap.tostring()) }
-        example = tf.train.Example(features=tf.train.Features(feature=feature))
+        feature_lists = {'cameras': tf.train.FeatureList(feature=camera_features),
+                         'gazemaps': tf.train.FeatureList(feature=gazemap_features)}
+                         
+        example = tf.train.SequenceExample(feature_lists=tf.train.FeatureLists(feature_list=feature_lists))
         writer.write(example.SerializeToString())
         
 with tf.python_io.TFRecordWriter(os.path.join(tfrecord_folder, "image_features_alexnet.tfrecords")) as writer:
     for seq in tqdm(data_point_names):
-        feature_map = list()
+        feature_map_features = list()
         for f in seq:
-            feature_map.append(np.load(os.path.join(feature_folder, f+'.npy')))
+            feature_map = np.load(os.path.join(feature_folder, f+'.npy'))
+            feature_map_features.append(_bytes_feature(feature_map.tostring()))
+        
+        feature_lists = {'feature_maps': tf.train.FeatureList(feature=feature_map_features)}
 
-        feature_map = np.array(feature_map)
-
-        feature = { 'feature_map': _bytes_feature(feature_map.tostring()) }
-        example = tf.train.Example(features=tf.train.Features(feature=feature))
+        example = tf.train.SequenceExample(feature_lists=tf.train.FeatureLists(feature_list=feature_lists))
         writer.write(example.SerializeToString())
 
