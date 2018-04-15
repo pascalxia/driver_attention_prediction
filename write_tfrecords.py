@@ -5,6 +5,8 @@ import numpy as np
 import cv2
 from tqdm import tqdm
 import argparse
+import random
+
 
 import data_point_collector as dpc
 
@@ -18,6 +20,7 @@ def _bytes_feature(value):
     
 parser = argparse.ArgumentParser()
 parser.add_argument('--data_dir', type=str, default=None)
+parser.add_argument('--n_divides', type=int, default=1)
 args = parser.parse_args()
 
 
@@ -31,28 +34,34 @@ if not os.path.isdir(tfrecord_folder):
 
 data_point_names = dpc.get_data_point_names(args.data_dir, in_sequences=True)
 
-with tf.python_io.TFRecordWriter(os.path.join(tfrecord_folder, "cameras_gazes_alexnet_features.tfrecords")) as writer:
-    for seq in tqdm(data_point_names):
-        camera_features = list()
-        feature_map_features = list()
-        gazemap_features = list()
-        for f in seq:
-            camera = cv2.imread(os.path.join(camera_folder,f+'.jpg'))[:,:,[2,1,0]]
-            camera = cv2.resize(camera, (64,36), interpolation=cv2.INTER_LINEAR)
-            camera_features.append(_bytes_feature(camera.tostring()))
-            
-            feature_map = np.load(os.path.join(feature_folder, f+'.npy'))
-            feature_map_features.append(_bytes_feature(feature_map.tostring()))
+random.shuffle(data_point_names)
+splits = [[] for _ in range(args.n_divides)]
+for i in range(len(data_point_names)):
+    splits[i%args.n_divides].append(data_point_names[i])
 
-            gazemap = cv2.imread(os.path.join(gazemap_folder, f+'.jpg'))[:,:,0]
-            gazemap = cv2.resize(gazemap, (64,36), interpolation=cv2.INTER_AREA)
-            gazemap_features.append(_bytes_feature(gazemap.tostring()))
-        
-        feature_lists = {'cameras': tf.train.FeatureList(feature=camera_features),
-                         'feature_maps': tf.train.FeatureList(feature=feature_map_features),
-                         'gazemaps': tf.train.FeatureList(feature=gazemap_features)}
-                         
-        example = tf.train.SequenceExample(feature_lists=tf.train.FeatureLists(feature_list=feature_lists))
-        writer.write(example.SerializeToString())
+for i in range(len(splits)):
+    with tf.python_io.TFRecordWriter(os.path.join(tfrecord_folder, "cameras_gazes_alexnet_features_%d.tfrecords" % i)) as writer:
+        for seq in tqdm(splits[i]):
+            camera_features = list()
+            feature_map_features = list()
+            gazemap_features = list()
+            for f in seq:
+                camera = cv2.imread(os.path.join(camera_folder,f+'.jpg'))[:,:,[2,1,0]]
+                camera = cv2.resize(camera, (64,36), interpolation=cv2.INTER_LINEAR)
+                camera_features.append(_bytes_feature(camera.tostring()))
+                
+                feature_map = np.load(os.path.join(feature_folder, f+'.npy'))
+                feature_map_features.append(_bytes_feature(feature_map.tostring()))
+    
+                gazemap = cv2.imread(os.path.join(gazemap_folder, f+'.jpg'))[:,:,0]
+                gazemap = cv2.resize(gazemap, (64,36), interpolation=cv2.INTER_AREA)
+                gazemap_features.append(_bytes_feature(gazemap.tostring()))
+            
+            feature_lists = {'cameras': tf.train.FeatureList(feature=camera_features),
+                             'feature_maps': tf.train.FeatureList(feature=feature_map_features),
+                             'gazemaps': tf.train.FeatureList(feature=gazemap_features)}
+                             
+            example = tf.train.SequenceExample(feature_lists=tf.train.FeatureLists(feature_list=feature_lists))
+            writer.write(example.SerializeToString())
         
 
