@@ -71,40 +71,28 @@ def train_input_fn(args):
   # parse data
   def _parse_function(example):
     # parsing
-    feature_info = {'cameras': tf.FixedLenSequenceFeature(shape=[], dtype=tf.string),
+    feature_info = {'cameras': tf.VarLenSequenceFeature(shape=[], dtype=tf.string),
                     'feature_maps': tf.FixedLenSequenceFeature(shape=[], dtype=tf.string),
-                    'gazemaps': tf.FixedLenSequenceFeature(shape=[], dtype=tf.string)}
+                    'gazemaps': tf.VarLenSequenceFeature(shape=[], dtype=tf.string),
+                    'gaze_ps': tf.FixedLenSequenceFeature(shape=[], dtype=tf.string)}
     _, parsed_features = tf.parse_single_sequence_example(example, sequence_features=feature_info)
     
     # reshaping
-    cameras = tf.reshape(tf.decode_raw(parsed_features["cameras"], tf.uint8), (-1, 36, 64, 3))
-    feature_maps = tf.reshape(tf.decode_raw(parsed_features["feature_maps"], tf.float32), (-1,36,64,256))
-    gazemaps = tf.reshape(tf.decode_raw(parsed_features["gazemaps"], tf.uint8), (-1,36,64,1))
+    parsed_features["feature_maps"] = tf.reshape(tf.decode_raw(parsed_features["feature_maps"], tf.float32), (-1,36,64,256))
+    parsed_features["gaze_ps"] = tf.reshape(tf.decode_raw(parsed_features["gaze_ps"], tf.float32), (-1,36*64))
     
     #select a subsequence
     length = tf.shape(cameras)[0]
     #pdb.set_trace()
     offset = tf.random_uniform(shape=[], minval=0, maxval=tf.maximum(length-args.n_steps+1, 1), dtype=tf.int32)
     end = tf.minimum(offset+args.n_steps, length)
-    cameras = cameras[offset:end]
-    feature_maps = feature_maps[offset:end]
-    gazemaps = gazemaps[offset:end]
-    
-    # normalizing gazemap into probability distribution
-    labels = tf.cast(gazemaps, tf.float32)
-    #labels = tf.image.resize_images(labels, (36,64), method=tf.image.ResizeMethod.AREA)
-    labels = tf.reshape(labels, (-1, 36*64))
-    labels = tf.matmul(tf.diag(1/tf.reduce_sum(labels,axis=1)), labels)
-    #labels = labels/tf.reduce_sum(labels, axis=1)
-
+    for key in parsed_features:
+        parsed_features[key] = parsed_features[key][offset:end]
     
     # return features and labels
-    features = {}
-    features['cameras'] = cameras
-    features['feature_maps'] = feature_maps
-    features['gazemaps'] = gazemaps
+    features = {key: parsed_features[key] for key in ('cameras', 'feature_maps', 'gazemaps')}
     
-    return features, labels
+    return features, parsed_features['gaze_ps']
   
   dataset = dataset.map(_parse_function, num_parallel_calls=10)
   
@@ -129,14 +117,14 @@ def main(argv):
   add_args.for_lstm(parser)
   args = parser.parse_args()
   
-  '''
+  
   ds = train_input_fn(args)
   iterator = ds.make_one_shot_iterator()
   next_element = iterator.get_next()
   sess = tf.Session()
   pdb.set_trace()
   res = sess.run(next_element)
-  '''
+  
   
   config = tf.estimator.RunConfig(save_summary_steps=10,
                                   log_step_count_steps=10)
