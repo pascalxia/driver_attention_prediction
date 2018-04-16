@@ -21,11 +21,12 @@ def _bytes_feature(value):
 parser = argparse.ArgumentParser()
 parser.add_argument('--data_dir', type=str, default=None)
 parser.add_argument('--n_divides', type=int, default=1)
+parser.add_argument('--feature_name', type=str, default='alexnet')
 args = parser.parse_args()
 
 
 camera_folder = os.path.join(args.data_dir, 'camera_images')
-feature_folder = os.path.join(args.data_dir, 'image_features_alexnet')
+feature_folder = os.path.join(args.data_dir, 'image_features_'+args.feature_name)
 gazemap_folder = os.path.join(args.data_dir, 'gazemap_images')
 tfrecord_folder = os.path.join(args.data_dir, 'tfrecords')
 
@@ -40,7 +41,10 @@ for i in range(len(data_point_names)):
     splits[i%args.n_divides].append(data_point_names[i])
 
 for i in range(len(splits)):
-    with tf.python_io.TFRecordWriter(os.path.join(tfrecord_folder, "cameras_gazes_alexnet_features_%d.tfrecords" % i)) as writer:
+    with tf.python_io.TFRecordWriter(
+        os.path.join(tfrecord_folder, 
+        "cameras_gazes_%s_features_%d.tfrecords" % (args.feature_name, i) )) as writer:
+        
         for seq in tqdm(splits[i]):
             camera_features = list()
             feature_map_features = list()
