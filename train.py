@@ -57,10 +57,18 @@ def model_fn(features, labels, mode, params):
 def train_input_fn(args):
   """Prepare data for training."""
   
-  dataset = tf.data.TFRecordDataset(os.path.join(args.data_dir,'tfrecords','cameras_gazes_alexnet_features.tfrecords'))
-  #image_feature_dataset = tf.data.TFRecordDataset(os.path.join(args.data_dir,'tfrecords','image_features_alexnet.tfrecords'))
-  #dataset = tf.data.Dataset.zip( (camera_gaze_dataset, image_feature_dataset) )
-
+  # get and shuffle tfrecords files
+  files = tf.data.Dataset.list_files(os.path.join(args.data_dir,'tfrecords','cameras_gazes_alexnet_features_*.tfrecords'))
+  files = files.shuffle(buffer_size=10)
+  
+  # parellel interleave to get raw bytes
+  dataset = files.apply(tf.contrib.data.parallel_interleave(
+    tf.data.TFRecordDataset, cycle_length=5, block_length=8))
+  
+  # shuffle before parsing  
+  dataset = dataset.shuffle(buffer_size=50)
+  
+  # parse data
   def _parse_function(example):
     # parsing
     feature_info = {'cameras': tf.FixedLenSequenceFeature(shape=[], dtype=tf.string),
@@ -98,12 +106,13 @@ def train_input_fn(args):
     
     return features, labels
   
-  dataset = dataset.map(_parse_function)
+  dataset = dataset.map(_parse_function, num_parallel_calls=10)
   
   dataset = dataset.padded_batch(args.batch_size, padded_shapes=({'cameras': [None,36, 64, 3],
                                                                   'feature_maps': [None,36,64,256],
                                                                   'gazemaps': [None,36,64,1]},
                                                                  [None,36*64]))
+  dataset = dataset.prefetch(buffer_size=args.batch_size)
   
   dataset = dataset.repeat()
   
