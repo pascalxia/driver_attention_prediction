@@ -63,10 +63,10 @@ def train_input_fn(args):
   
   # parellel interleave to get raw bytes
   dataset = files.apply(tf.contrib.data.parallel_interleave(
-    tf.data.TFRecordDataset, cycle_length=5, block_length=8))
+    tf.data.TFRecordDataset, cycle_length=5, block_length=args.batch_size))
   
   # shuffle before parsing  
-  dataset = dataset.shuffle(buffer_size=50)
+  dataset = dataset.shuffle(buffer_size=5*args.batch_size)
   
   # parse data
   def _parse_function(example):
