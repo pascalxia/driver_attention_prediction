@@ -126,6 +126,16 @@ def for_training(parser):
      'type': int,
      'help': 'Maximum iterations'},
     {
+     'name': 'train_epochs',
+     'default': 10,
+     'type': int,
+     'help': 'For how many epochs the model should be trained in total'},
+    {
+     'name': 'epochs_before_validation',
+     'default': 1,
+     'type': int,
+     'help': 'For how many epochs the model should be trained before each time of validation'},
+    {
      'name': 'quick_summary_period',
      'default': 10,
      'type': int,

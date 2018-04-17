@@ -54,19 +54,21 @@ def model_fn(features, labels, mode, params):
 
 
 # Set up training and evaluation input functions.
-def train_input_fn(args):
+def input_fn(batch_size, n_steps, shuffle, include_labels, n_epochs, args):
   """Prepare data for training."""
   
   # get and shuffle tfrecords files
   files = tf.data.Dataset.list_files(os.path.join(args.data_dir,'tfrecords','cameras_gazes_alexnet_features_*.tfrecords'))
-  files = files.shuffle(buffer_size=10)
+  if shuffle:
+      files = files.shuffle(buffer_size=10)
   
   # parellel interleave to get raw bytes
   dataset = files.apply(tf.contrib.data.parallel_interleave(
-    tf.data.TFRecordDataset, cycle_length=5, block_length=args.batch_size))
+    tf.data.TFRecordDataset, cycle_length=5, block_length=batch_size))
   
-  # shuffle before parsing  
-  dataset = dataset.shuffle(buffer_size=5*args.batch_size)
+  # shuffle before parsing
+  if shuffle:
+      dataset = dataset.shuffle(buffer_size=5*batch_size)
   
   # parse data
   def _parse_function(example):
@@ -81,20 +83,22 @@ def train_input_fn(args):
     feature_maps = tf.reshape(tf.decode_raw(parsed_features["feature_maps"], tf.float32), (-1,36,64,256))
     gazemaps = tf.reshape(tf.decode_raw(parsed_features["gazemaps"], tf.uint8), (-1,36,64,1))
     
-    #select a subsequence
-    length = tf.shape(cameras)[0]
-    #pdb.set_trace()
-    offset = tf.random_uniform(shape=[], minval=0, maxval=tf.maximum(length-args.n_steps+1, 1), dtype=tf.int32)
-    end = tf.minimum(offset+args.n_steps, length)
-    cameras = cameras[offset:end]
-    feature_maps = feature_maps[offset:end]
-    gazemaps = gazemaps[offset:end]
+    if n_steps is not None:
+        #select a subsequence
+        length = tf.shape(cameras)[0]
+        #pdb.set_trace()
+        offset = tf.random_uniform(shape=[], minval=0, maxval=tf.maximum(length-n_steps+1, 1), dtype=tf.int32)
+        end = tf.minimum(offset+n_steps, length)
+        cameras = cameras[offset:end]
+        feature_maps = feature_maps[offset:end]
+        gazemaps = gazemaps[offset:end]
     
-    # normalizing gazemap into probability distribution
-    labels = tf.cast(gazemaps, tf.float32)
-    #labels = tf.image.resize_images(labels, (36,64), method=tf.image.ResizeMethod.AREA)
-    labels = tf.reshape(labels, (-1, 36*64))
-    labels = tf.matmul(tf.diag(1/tf.reduce_sum(labels,axis=1)), labels)
+    if include_labels:
+        # normalizing gazemap into probability distribution
+        labels = tf.cast(gazemaps, tf.float32)
+        #labels = tf.image.resize_images(labels, (36,64), method=tf.image.ResizeMethod.AREA)
+        labels = tf.reshape(labels, (-1, 36*64))
+        labels = tf.matmul(tf.diag(1/tf.reduce_sum(labels,axis=1)), labels)
     #labels = labels/tf.reduce_sum(labels, axis=1)
 
     
@@ -104,17 +108,25 @@ def train_input_fn(args):
     features['feature_maps'] = feature_maps
     features['gazemaps'] = gazemaps
     
-    return features, labels
+    if include_labels:
+        return features, labels
+    else:
+        return features
   
   dataset = dataset.map(_parse_function, num_parallel_calls=10)
   
-  dataset = dataset.padded_batch(args.batch_size, padded_shapes=({'cameras': [None,36, 64, 3],
-                                                                  'feature_maps': [None,36,64,256],
-                                                                  'gazemaps': [None,36,64,1]},
-                                                                 [None,36*64]))
-  dataset = dataset.prefetch(buffer_size=args.batch_size)
+  padded_shapes = {'cameras': [None,36, 64, 3],
+                   'feature_maps': [None,36,64,256],
+                   'gazemaps': [None,36,64,1]}
+  if include_labels:
+      padded_shapes = (padded_shapes, [None,12*20])
+      
+  dataset = dataset.padded_batch(batch_size, padded_shapes=padded_shapes)
+                                                               
+  dataset = dataset.prefetch(buffer_size=batch_size)
   
-  dataset = dataset.repeat()
+  dataset = dataset.repeat(n_epochs)
+
   
   return dataset
 
@@ -150,8 +162,16 @@ def main(argv):
   #predict_generator = model.predict(input_fn = lambda: train_input_fn(args))
   #res = next(predict_generator)
   
-  # Train and evaluate model.
-  model.train(input_fn=lambda: train_input_fn(args))
+  for _ in range(args.train_epochs // args.epochs_before_validation):
+      # Train the model.
+      model.train(input_fn=lambda: input_fn(args.batch_size, 
+          args.n_steps, shuffle=True, include_labels=True, 
+          n_epochs=args.epochs_before_validation, args=args) )
+      # validate the model
+      valid_results = model.evaluate(input_fn=lambda: input_fn(batch_size=1, 
+          n_steps=None, shuffle=False, include_labels=True, 
+          n_epochs=1, args=args) )
+      print(valid_results)
   
   #pdb.set_trace()
   
