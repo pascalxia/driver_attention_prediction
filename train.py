@@ -8,6 +8,7 @@ import tensorflow as tf
 import networks
 
 import add_args
+from keras import backend as K
 
 import pdb
 
@@ -18,6 +19,7 @@ LEARNING_RATE = 1e-3
 
 def model_fn(features, labels, mode, params):
   """The model_fn argument for creating an Estimator."""
+  # input
   cameras = features['cameras']
   feature_maps = features['feature_maps']
   gazemaps = features['gazemaps']
@@ -26,39 +28,56 @@ def model_fn(features, labels, mode, params):
   tf.summary.image('cameras', tf.reshape(cameras, (-1,36,64,3)), max_outputs=6)
   tf.summary.image('gazemaps', tf.reshape(gazemaps, (-1,36,64,1)), max_outputs=6)
   
+  # build up model
   logits = networks.big_conv_lstm_readout_net(feature_maps, 
                                               feature_map_size=(36,64), 
                                               drop_rate=0.2)
-
+  
+  # get prediction
+  ps = tf.nn.softmax(logits)
+  predictions = {
+      'ps': ps
+  }
+  
+  if mode == tf.estimator.ModeKeys.PREDICT:
+    return tf.estimator.EstimatorSpec(mode=mode, predictions=predictions)
+  
+  # set up loss
+  loss = tf.losses.softmax_cross_entropy(onehot_labels=labels, logits=logits)
+  
+  # set up training
   if mode == tf.estimator.ModeKeys.TRAIN:
     optimizer = tf.train.AdamOptimizer(learning_rate=LEARNING_RATE)
-
-    loss = tf.losses.softmax_cross_entropy(onehot_labels=labels, logits=logits)
-    #TODO: write correlation coefficient as a accuracy metric
-    accuracy = tf.identity(loss)
-
-    # Name tensors to be logged with LoggingTensorHook.
-    tf.identity(LEARNING_RATE, 'learning_rate')
-    tf.identity(loss, 'cross_entropy')
-    tf.identity(accuracy, name='train_accuracy')
-
-    # Save accuracy scalar to Tensorboard output.
-    tf.summary.scalar('train_accuracy', accuracy)
-
-
-    return tf.estimator.EstimatorSpec(
-        mode=tf.estimator.ModeKeys.TRAIN,
-        loss=loss,
-        train_op=optimizer.minimize(loss, tf.train.get_or_create_global_step()))
+    train_op = optimizer.minimize(loss, tf.train.get_or_create_global_step())
+  else:
+    train_op = None
+    
+    
+  # set up metrics
+  #TODO: write correlation coefficient as a accuracy metric
+  accuracy = tf.contrib.metrics.streaming_pearson_correlation(ps, labels)
+  metrics = {'accuracy': accuracy}
+  
+  tf.summary.scalar('train_accuracy', accuracy[1])
+    
+  
+  return tf.estimator.EstimatorSpec(
+    mode=mode,
+    predictions=predictions,
+    loss=loss,
+    train_op=train_op,
+    eval_metric_ops=metrics)
+    
+  
 
 
 
 # Set up training and evaluation input functions.
-def input_fn(batch_size, n_steps, shuffle, include_labels, n_epochs, args):
+def input_fn(dataset, batch_size, n_steps, shuffle, include_labels, n_epochs, args):
   """Prepare data for training."""
   
   # get and shuffle tfrecords files
-  files = tf.data.Dataset.list_files(os.path.join(args.data_dir,'tfrecords','cameras_gazes_alexnet_features_*.tfrecords'))
+  files = tf.data.Dataset.list_files(os.path.join(args.data_dir, dataset,'tfrecords','cameras_gazes_'+args.feature_name+'_features_*.tfrecords'))
   if shuffle:
       files = files.shuffle(buffer_size=10)
   
@@ -163,15 +182,20 @@ def main(argv):
   #res = next(predict_generator)
   
   for _ in range(args.train_epochs // args.epochs_before_validation):
-      # Train the model.
-      model.train(input_fn=lambda: input_fn(args.batch_size, 
-          args.n_steps, shuffle=True, include_labels=True, 
-          n_epochs=args.epochs_before_validation, args=args) )
-      # validate the model
-      valid_results = model.evaluate(input_fn=lambda: input_fn(batch_size=1, 
-          n_steps=None, shuffle=False, include_labels=True, 
-          n_epochs=1, args=args) )
-      print(valid_results)
+    # Train the model.
+    #pdb.set_trace()
+    K.clear_session()
+    model.train(input_fn=lambda: input_fn('training',
+      args.batch_size, args.n_steps, 
+      shuffle=True, include_labels=True, 
+      n_epochs=args.epochs_before_validation, args=args) )
+    # validate the model
+    K.clear_session()
+    valid_results = model.evaluate(input_fn=lambda: input_fn('validation', 
+      batch_size=1, n_steps=None, 
+      shuffle=False, include_labels=True, 
+      n_epochs=1, args=args) )
+    print(valid_results)
   
   #pdb.set_trace()
   
