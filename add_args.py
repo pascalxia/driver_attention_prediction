@@ -84,7 +84,7 @@ def for_feature(parser):
     args = [
     {
      'name': 'feature_name',
-     'default': 'vgg',
+     'default': 'alexnet',
      'type': str,
      'help': 'Which kind of features to use'},
     {
