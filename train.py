@@ -21,13 +21,13 @@ def model_fn(features, labels, mode, params):
   cameras = features['cameras']
   feature_maps = features['feature_maps']
   gazemaps = features['gazemaps']
-  labels = tf.reshape(labels, (-1, 36*64))
+  labels = tf.reshape(labels, (-1, 12*20))
   
   tf.summary.image('cameras', tf.reshape(cameras, (-1,36,64,3)), max_outputs=6)
-  tf.summary.image('gazemaps', tf.reshape(gazemaps, (-1,36,64,1)), max_outputs=6)
+  tf.summary.image('gazemaps', tf.reshape(gazemaps, (-1,12,20,1)), max_outputs=6)
   
   logits = networks.big_conv_lstm_readout_net(feature_maps, 
-                                              feature_map_size=(36,64), 
+                                              feature_map_size=(12,20), 
                                               drop_rate=0.2)
 
   if mode == tf.estimator.ModeKeys.TRAIN:
@@ -58,7 +58,7 @@ def train_input_fn(args):
   """Prepare data for training."""
   
   # get and shuffle tfrecords files
-  files = tf.data.Dataset.list_files(os.path.join(args.data_dir,'tfrecords','cameras_gazes_alexnet_features_*.tfrecords'))
+  files = tf.data.Dataset.list_files(os.path.join(args.data_dir,'tfrecords','cameras_gazes_'+args.feature_name+'_features_*.tfrecords'))
   files = files.shuffle(buffer_size=10)
   
   # parellel interleave to get raw bytes
@@ -78,8 +78,8 @@ def train_input_fn(args):
     
     # reshaping
     cameras = tf.reshape(tf.decode_raw(parsed_features["cameras"], tf.uint8), (-1, 36, 64, 3))
-    feature_maps = tf.reshape(tf.decode_raw(parsed_features["feature_maps"], tf.float32), (-1,36,64,256))
-    gazemaps = tf.reshape(tf.decode_raw(parsed_features["gazemaps"], tf.uint8), (-1,36,64,1))
+    feature_maps = tf.reshape(tf.decode_raw(parsed_features["feature_maps"], tf.float32), (-1,12,20,64))
+    gazemaps = tf.reshape(tf.decode_raw(parsed_features["gazemaps"], tf.uint8), (-1,12,20,1))
     
     #select a subsequence
     length = tf.shape(cameras)[0]
@@ -93,9 +93,8 @@ def train_input_fn(args):
     # normalizing gazemap into probability distribution
     labels = tf.cast(gazemaps, tf.float32)
     #labels = tf.image.resize_images(labels, (36,64), method=tf.image.ResizeMethod.AREA)
-    labels = tf.reshape(labels, (-1, 36*64))
+    labels = tf.reshape(labels, (-1, 12*20))
     labels = tf.matmul(tf.diag(1/tf.reduce_sum(labels,axis=1)), labels)
-    #labels = labels/tf.reduce_sum(labels, axis=1)
 
     
     # return features and labels
@@ -105,19 +104,22 @@ def train_input_fn(args):
     features['gazemaps'] = gazemaps
     
     return features, labels
-  
+
   dataset = dataset.map(_parse_function, num_parallel_calls=10)
   
   dataset = dataset.padded_batch(args.batch_size, padded_shapes=({'cameras': [None,36, 64, 3],
-                                                                  'feature_maps': [None,36,64,256],
-                                                                  'gazemaps': [None,36,64,1]},
-                                                                 [None,36*64]))
+                                                                  'feature_maps': [None,12,20,64],
+                                                                  'gazemaps': [None,12,20,1]},
+                                                                 [None,12*20]))
+                                                               
+                                                                 
   dataset = dataset.prefetch(buffer_size=args.batch_size)
   
   dataset = dataset.repeat()
   
   return dataset
-
+  
+  
 
 def main(argv):
   

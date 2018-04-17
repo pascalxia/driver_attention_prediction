@@ -74,7 +74,7 @@ for i in range(len(splits)):
                 feature_map_features.append(_bytes_feature(feature_map.tostring()))
     
                 gazemap = cv2.imread(os.path.join(gazemap_folder, f+'.jpg'))[:,:,0]
-                gazemap = cv2.resize(gazemap, (64,36), interpolation=cv2.INTER_AREA)
+                gazemap = cv2.resize(gazemap, (20,12), interpolation=cv2.INTER_AREA)
                 gazemap_features.append(_bytes_feature(gazemap.tostring()))
             
             feature_lists = {'cameras': tf.train.FeatureList(feature=camera_features),
