@@ -177,7 +177,8 @@ def main(argv):
   
   if args.gpu_memory_fraction is not None:
     session_config = tf.ConfigProto()
-    config.gpu_options.per_process_gpu_memory_fraction = args.gpu_memory_fraction
+    session_config.gpu_options.allow_growth = True
+    session_config.gpu_options.per_process_gpu_memory_fraction = args.gpu_memory_fraction
   else:
     session_config = None
   
