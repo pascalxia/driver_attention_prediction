@@ -25,8 +25,8 @@ def model_fn(features, labels, mode, params):
   gazemaps = features['gazemaps']
   labels = tf.reshape(labels, (-1, 36*64))
   
-  tf.summary.image('cameras', tf.reshape(cameras, (-1,36,64,3)), max_outputs=6)
-  tf.summary.image('gazemaps', tf.reshape(gazemaps, (-1,36,64,1)), max_outputs=6)
+  tf.summary.image('cameras', tf.reshape(cameras, (-1,36,64,3)), max_outputs=2)
+  tf.summary.image('gazemaps', tf.reshape(gazemaps, (-1,36,64,1)), max_outputs=2)
   
   # build up model
   logits = networks.big_conv_lstm_readout_net(feature_maps, 
@@ -38,6 +38,9 @@ def model_fn(features, labels, mode, params):
   predictions = {
       'ps': ps
   }
+  
+  predicted_gazemaps = tf.reshape(ps, (-1, 12, 20, 1))
+  tf.summary.image('predictions', predicted_gazemaps, max_outputs=2)
   
   if mode == tf.estimator.ModeKeys.PREDICT:
     return tf.estimator.EstimatorSpec(mode=mode, predictions=predictions)
