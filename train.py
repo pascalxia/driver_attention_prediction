@@ -9,6 +9,8 @@ import networks
 
 import add_args
 from keras import backend as K
+from tensorflow.python.training import basic_session_run_hooks
+import shutil
 
 import pdb
 
@@ -150,7 +152,8 @@ def input_fn(dataset, batch_size, n_steps, shuffle, include_labels, n_epochs, ar
 
   
   return dataset
-  
+
+
   
 
 def main(argv):
@@ -184,6 +187,14 @@ def main(argv):
   #predict_generator = model.predict(input_fn = lambda: train_input_fn(args))
   #res = next(predict_generator)
   
+  # set up the directory to save the best checkpoint
+  best_ckpt_dir = os.path.join(args.model_dir, 'best_ckpt')
+  if not os.path.isdir(best_ckpt_dir):
+    os.makedirs(best_ckpt_dir)
+    smallest_loss = float('Inf')
+  else:
+    smallest_loss = [float(f.split('_')[1]) for f in os.listdir(best_ckpt_dir) if f.startswith('loss_')][0]
+  
   for _ in range(args.train_epochs // args.epochs_before_validation):
     # Train the model.
     #pdb.set_trace()
@@ -199,6 +210,21 @@ def main(argv):
       shuffle=False, include_labels=True, 
       n_epochs=1, args=args) )
     print(valid_results)
+    
+    if valid_results['loss'] < smallest_loss:
+      smallest_loss = valid_results['loss']
+      # delete best_ckpt_dir
+      shutil.rmtree(best_ckpt_dir)
+      # re-make best_ckpt_dir as empty
+      os.makedirs(best_ckpt_dir)
+      # note down the new smallest loss
+      open(os.path.join(best_ckpt_dir, 'loss_%f' % smallest_loss), 'a').close()
+      # copy the checkpoint
+      files_to_copy = [f for f in os.listdir(args.model_dir) 
+        if f.startswith('model.ckpt-'+str(valid_results['global_step']))]
+      for f in files_to_copy:
+        shutil.copyfile(os.path.join(args.model_dir, f),
+          os.path.join(best_ckpt_dir, f))
   
   #pdb.set_trace()
   
