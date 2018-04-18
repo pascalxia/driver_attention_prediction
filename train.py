@@ -175,8 +175,15 @@ def main(argv):
   res = sess.run(next_element)
   '''
   
+  if args.gpu_memory_fraction is not None:
+    session_config = tf.ConfigProto()
+    config.gpu_options.per_process_gpu_memory_fraction = args.gpu_memory_fraction
+  else:
+    session_config = None
+  
   config = tf.estimator.RunConfig(save_summary_steps=10,
-                                  log_step_count_steps=10)
+                                  log_step_count_steps=10,
+                                  session_config = session_config)
   
   model = tf.estimator.Estimator(
     model_fn=model_fn,
