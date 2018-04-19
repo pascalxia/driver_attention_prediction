@@ -29,7 +29,13 @@ def for_general(parser):
      'nargs': 2,
      'default': [576,1024],
      'type': int,
-     'help': 'Size of the input image'}
+     'help': 'Size of the input image'},
+    {
+     'name': 'gazemap_size',
+     'nargs': 2,
+     'default': [36,64],
+     'type': int,
+     'help': 'Size of the predicted gaze map'}
     ]
     add_args(args, parser)
 

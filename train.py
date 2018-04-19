@@ -25,14 +25,14 @@ def model_fn(features, labels, mode, params):
   cameras = features['cameras']
   feature_maps = features['feature_maps']
   gazemaps = features['gazemaps']
-  labels = tf.reshape(labels, (-1, 36*64))
+  labels = tf.reshape(labels, (-1, params['gazemap_size'][0]*params['gazemap_size'][1]))
   
-  tf.summary.image('cameras', tf.reshape(cameras, (-1,36,64,3)), max_outputs=2)
-  tf.summary.image('gazemaps', tf.reshape(gazemaps, (-1,36,64,1)), max_outputs=2)
+  tf.summary.image('cameras', tf.reshape(cameras, [-1,]+params['image_size']+[3]), max_outputs=2)
+  tf.summary.image('gazemaps', tf.reshape(gazemaps, [-1,]+params['gazemap_size']+[1]), max_outputs=2)
   
   # build up model
   logits = networks.big_conv_lstm_readout_net(feature_maps, 
-                                              feature_map_size=(36,64), 
+                                              feature_map_size=params['feature_map_size'], 
                                               drop_rate=0.2)
   
   # get prediction
@@ -41,7 +41,7 @@ def model_fn(features, labels, mode, params):
       'ps': ps
   }
   
-  predicted_gazemaps = tf.reshape(ps, (-1, 12, 20, 1))
+  predicted_gazemaps = tf.reshape(ps, [-1,]+params['gazemap_size']+[1])
   tf.summary.image('predictions', predicted_gazemaps, max_outputs=2)
   
   if mode == tf.estimator.ModeKeys.PREDICT:
@@ -103,9 +103,10 @@ def input_fn(dataset, batch_size, n_steps, shuffle, include_labels, n_epochs, ar
     _, parsed_features = tf.parse_single_sequence_example(example, sequence_features=feature_info)
     
     # reshaping
-    cameras = tf.reshape(tf.decode_raw(parsed_features["cameras"], tf.uint8), (-1, 36, 64, 3))
-    feature_maps = tf.reshape(tf.decode_raw(parsed_features["feature_maps"], tf.float32), (-1,36,64,256))
-    gazemaps = tf.reshape(tf.decode_raw(parsed_features["gazemaps"], tf.uint8), (-1,36,64,1))
+    cameras = tf.reshape(tf.decode_raw(parsed_features["cameras"], tf.uint8), [-1,]+args.image_size+[3])
+    feature_maps = tf.reshape(tf.decode_raw(parsed_features["feature_maps"], tf.float32), 
+      [-1,]+args.feature_map_size+[args.feature_map_channels])
+    gazemaps = tf.reshape(tf.decode_raw(parsed_features["gazemaps"], tf.uint8), [-1,]+args.gazemap_size+[1])
     
     if n_steps is not None:
         #select a subsequence
@@ -121,7 +122,7 @@ def input_fn(dataset, batch_size, n_steps, shuffle, include_labels, n_epochs, ar
         # normalizing gazemap into probability distribution
         labels = tf.cast(gazemaps, tf.float32)
         #labels = tf.image.resize_images(labels, (36,64), method=tf.image.ResizeMethod.AREA)
-        labels = tf.reshape(labels, (-1, 36*64))
+        labels = tf.reshape(labels, (-1, args.gazemap_size[0]*args.gazemap_size[1]))
         labels = tf.matmul(tf.diag(1/tf.reduce_sum(labels,axis=1)), labels)
     #labels = labels/tf.reduce_sum(labels, axis=1)
 
@@ -139,11 +140,11 @@ def input_fn(dataset, batch_size, n_steps, shuffle, include_labels, n_epochs, ar
   
   dataset = dataset.map(_parse_function, num_parallel_calls=10)
   
-  padded_shapes = {'cameras': [None,36, 64, 3],
-                   'feature_maps': [None,36,64,256],
-                   'gazemaps': [None,36,64,1]}
+  padded_shapes = {'cameras': [None,]+args.image_size+[3],
+                   'feature_maps': [None,]+args.feature_map_size+[args.feature_map_channels],
+                   'gazemaps': [None,]+args.gazemap_size+[1]}
   if include_labels:
-      padded_shapes = (padded_shapes, [None,12*20])
+      padded_shapes = (padded_shapes, [None, args.gazemap_size[0]*args.gazemap_size[1]])
       
   dataset = dataset.padded_batch(batch_size, padded_shapes=padded_shapes)
                                                                
@@ -169,7 +170,11 @@ def main(argv):
   args = parser.parse_args()
   
   '''
-  ds = train_input_fn(args)
+  this_input_fn=lambda: input_fn('training',
+      args.batch_size, args.n_steps, 
+      shuffle=True, include_labels=True, 
+      n_epochs=args.epochs_before_validation, args=args)
+  ds = this_input_fn()
   iterator = ds.make_one_shot_iterator()
   next_element = iterator.get_next()
   sess = tf.Session()
@@ -179,11 +184,18 @@ def main(argv):
   
   config = tf.estimator.RunConfig(save_summary_steps=10,
                                   log_step_count_steps=10)
+                                  
+  params = {
+    'image_size': args.image_size,
+    'gazemap_size': args.gazemap_size,
+    'feature_map_size': args.feature_map_size
+  }
   
   model = tf.estimator.Estimator(
     model_fn=model_fn,
     model_dir=args.model_dir,
-    config=config)
+    config=config,
+    params=params)
   
   #pdb.set_trace()
   #predict_generator = model.predict(input_fn = lambda: train_input_fn(args))
