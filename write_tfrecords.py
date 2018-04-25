@@ -49,21 +49,32 @@ for i in range(len(splits)):
             camera_features = list()
             feature_map_features = list()
             gazemap_features = list()
+            gaze_ps_features = list()
             for f in seq:
+                # write camera images
                 camera = cv2.imread(os.path.join(camera_folder,f+'.jpg'))               # do not flip bgr for imencode
                 camera = cv2.resize(camera, (1024,576), interpolation=cv2.INTER_LINEAR) # please check if this is the desired size
                 camera = cv2.imencode('.jpg', camera)[1].tostring()                     # imencode returns tuple(bool, ndarray)
                 camera_features.append(camera)
                 
+                # write image feature maps
                 feature_map = np.load(os.path.join(feature_folder, f+'.npy'))
                 feature_map_features.append(_bytes_feature(feature_map.tostring()))
-    
-                gazemap = cv2.imread(os.path.join(gazemap_folder, f+'.jpg'))            # similarly no slicing for gazemap
+                
+                # write gaze probability distribution
+                gazemap = cv2.imread(os.path.join(gazemap_folder, f+'.jpg'))[:,:,0]
+                gaze_ps = cv2.resize(gazemap, (64,36), interpolation=cv2.INTER_AREA)
+                gaze_ps = gaze_ps.reshape((64*36,))
+                gaze_ps = gaze_ps/np.sum(gaze_ps)
+                gaze_ps_features.append(_bytes_feature(gaze_ps.tostring()))
+                
+                # write gazemap images
                 gazemap = cv2.resize(gazemap, (1024,576), interpolation=cv2.INTER_AREA) # please check this size as well
                 gazemap = cv2.imencode('.jpg', gazemap)[1].tostring()
                 gazemap_features.append(gazemap)
             
-            feature_lists = {'feature_maps': tf.train.FeatureList(feature=feature_map_features)}
+            feature_lists = {'feature_maps': tf.train.FeatureList(feature=feature_map_features),
+                             'gaze_ps': tf.train.FeatureList(feature=gaze_ps_features)}
             features = {'cameras': tf.train.Feature(bytes_list=tf.train.BytesList(value=camera_features)),
                         'gazemaps': tf.train.Feature(bytes_list=tf.train.BytesList(value=gazemap_features))}
             
