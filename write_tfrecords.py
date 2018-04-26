@@ -6,6 +6,7 @@ import cv2
 from tqdm import tqdm
 import argparse
 import random
+import pdb
 
 
 import data_point_collector as dpc
@@ -34,6 +35,8 @@ if not os.path.isdir(tfrecord_folder):
     os.makedirs(tfrecord_folder)
 
 data_point_names = dpc.get_data_point_names(args.data_dir, in_sequences=True)
+##################### DEBUG ######################
+#data_point_names = data_point_names[:20]
 
 random.shuffle(data_point_names)
 splits = [[] for _ in range(args.n_divides)]
@@ -62,8 +65,10 @@ for i in range(len(splits)):
                 feature_map_features.append(_bytes_feature(feature_map.tostring()))
                 
                 # write gaze probability distribution
+                #pdb.set_trace()
                 gazemap = cv2.imread(os.path.join(gazemap_folder, f+'.jpg'))[:,:,0]
-                gaze_ps = cv2.resize(gazemap, (64,36), interpolation=cv2.INTER_AREA)
+                gaze_ps = gazemap.astype(np.float32)
+                gaze_ps = cv2.resize(gaze_ps, (64,36), interpolation=cv2.INTER_AREA)
                 gaze_ps = gaze_ps.reshape((64*36,))
                 gaze_ps = gaze_ps/np.sum(gaze_ps)
                 gaze_ps_features.append(_bytes_feature(gaze_ps.tostring()))
@@ -79,7 +84,7 @@ for i in range(len(splits)):
                         'gazemaps': tf.train.Feature(bytes_list=tf.train.BytesList(value=gazemap_features))}
             
             example = tf.train.SequenceExample(
-                context=tf.train.Features(features=features),
+                context=tf.train.Features(feature=features),
                 feature_lists=tf.train.FeatureLists(feature_list=feature_lists))
             writer.write(example.SerializeToString())
         

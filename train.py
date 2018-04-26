@@ -28,7 +28,7 @@ def model_fn(features, labels, mode, params):
   labels = tf.reshape(labels, (-1, params['gazemap_size'][0]*params['gazemap_size'][1]))
   
   tf.summary.image('cameras', tf.reshape(cameras, [-1,]+params['image_size']+[3]), max_outputs=2)
-  tf.summary.image('gazemaps', tf.reshape(gazemaps, [-1,]+params['gazemap_size']+[1]), max_outputs=2)
+  tf.summary.image('gazemaps', tf.reshape(gazemaps, [-1,]+params['image_size']+[1]), max_outputs=2)
   
   # build up model
   logits = networks.big_conv_lstm_readout_net(feature_maps, 
@@ -97,35 +97,54 @@ def input_fn(dataset, batch_size, n_steps, shuffle, include_labels, n_epochs, ar
   # parse data
   def _parse_function(example):
     # parsing
-    feature_info = {'cameras': tf.FixedLenSequenceFeature(shape=[], dtype=tf.string),
-                    'feature_maps': tf.FixedLenSequenceFeature(shape=[], dtype=tf.string),
-                    'gazemaps': tf.FixedLenSequenceFeature(shape=[], dtype=tf.string)}
-    _, parsed_features = tf.parse_single_sequence_example(example, sequence_features=feature_info)
+    context_feature_info = {
+      'cameras': tf.VarLenFeature(dtype=tf.string),
+      'gazemaps': tf.VarLenFeature(dtype=tf.string)
+    }
+    sequence_feature_info = {
+      'feature_maps': tf.FixedLenSequenceFeature(shape=[], dtype=tf.string),
+      'gaze_ps': tf.FixedLenSequenceFeature(shape=[], dtype=tf.string)
+    }
+    context_features, sequence_features = tf.parse_single_sequence_example(example, 
+      context_features=context_feature_info,
+      sequence_features=sequence_feature_info)
     
-    # reshaping
-    cameras = tf.reshape(tf.decode_raw(parsed_features["cameras"], tf.uint8), [-1,]+args.image_size+[3])
-    feature_maps = tf.reshape(tf.decode_raw(parsed_features["feature_maps"], tf.float32), 
+    cameras = tf.sparse_tensor_to_dense(context_features["cameras"], default_value='')
+    gazemaps = tf.sparse_tensor_to_dense(context_features["gazemaps"], default_value='')
+    
+    feature_maps = tf.reshape(tf.decode_raw(sequence_features["feature_maps"], tf.float32), 
       [-1,]+args.feature_map_size+[args.feature_map_channels])
-    gazemaps = tf.reshape(tf.decode_raw(parsed_features["gazemaps"], tf.uint8), [-1,]+args.gazemap_size+[1])
-    
-    if n_steps is not None:
-        #select a subsequence
-        length = tf.shape(cameras)[0]
-        #pdb.set_trace()
-        offset = tf.random_uniform(shape=[], minval=0, maxval=tf.maximum(length-n_steps+1, 1), dtype=tf.int32)
-        end = tf.minimum(offset+n_steps, length)
-        cameras = cameras[offset:end]
-        feature_maps = feature_maps[offset:end]
-        gazemaps = gazemaps[offset:end]
     
     if include_labels:
-        # normalizing gazemap into probability distribution
-        labels = tf.cast(gazemaps, tf.float32)
-        #labels = tf.image.resize_images(labels, (36,64), method=tf.image.ResizeMethod.AREA)
-        labels = tf.reshape(labels, (-1, args.gazemap_size[0]*args.gazemap_size[1]))
-        labels = tf.matmul(tf.diag(1/tf.reduce_sum(labels,axis=1)), labels)
-    #labels = labels/tf.reduce_sum(labels, axis=1)
-
+      labels = tf.reshape(tf.decode_raw(sequence_features["gaze_ps"], tf.float32), 
+        [-1, args.gazemap_size[0]*args.gazemap_size[1]])
+    
+    
+    if n_steps is not None:
+      #select a subsequence
+      length = tf.shape(cameras)[0]
+      
+      offset = tf.random_uniform(shape=[], minval=0, maxval=tf.maximum(length-n_steps+1, 1), dtype=tf.int32)
+      end = tf.minimum(offset+n_steps, length)
+      cameras = cameras[offset:end]
+      feature_maps = feature_maps[offset:end]
+      gazemaps = gazemaps[offset:end]
+      labels = labels[offset:end]
+    
+    # decode jpg's
+    cameras = tf.map_fn(
+      tf.image.decode_jpeg,
+      cameras,
+      dtype=tf.uint8,
+      back_prop=False
+    )
+    gazemaps = tf.map_fn(
+      tf.image.decode_jpeg,
+      gazemaps,
+      dtype=tf.uint8,
+      back_prop=False
+    )
+    
     
     # return features and labels
     features = {}
@@ -140,9 +159,12 @@ def input_fn(dataset, batch_size, n_steps, shuffle, include_labels, n_epochs, ar
   
   dataset = dataset.map(_parse_function, num_parallel_calls=10)
   
-  padded_shapes = {'cameras': [None,]+args.image_size+[3],
+  padded_shapes = {'cameras': [None, 576, 1024, 3],#[None,]+args.image_size+[3],
                    'feature_maps': [None,]+args.feature_map_size+[args.feature_map_channels],
-                   'gazemaps': [None,]+args.gazemap_size+[1]}
+                   'gazemaps': [None, 576, 1024, 1]}#[None,]+args.gazemap_size+[1]}
+                   
+  #padded_shapes = {'feature_maps': [None,]+args.feature_map_size+[args.feature_map_channels]}
+                   
   if include_labels:
       padded_shapes = (padded_shapes, [None, args.gazemap_size[0]*args.gazemap_size[1]])
       
@@ -211,7 +233,7 @@ def main(argv):
   
   for _ in range(args.train_epochs // args.epochs_before_validation):
     # Train the model.
-    #pdb.set_trace()
+    
     K.clear_session()
     model.train(input_fn=lambda: input_fn('training',
       args.batch_size, args.n_steps, 
@@ -240,7 +262,7 @@ def main(argv):
         shutil.copyfile(os.path.join(args.model_dir, f),
           os.path.join(best_ckpt_dir, f))
   
-  #pdb.set_trace()
+  
   
   #model.train(input_fn=lambda: train_input_fn(args))
 
