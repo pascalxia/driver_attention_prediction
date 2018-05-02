@@ -5,6 +5,7 @@ import numpy as np
 import cv2
 from tqdm import tqdm
 import argparse
+import add_args
 import random
 import pdb
 
@@ -18,9 +19,10 @@ def _int64_feature(value):
 def _bytes_feature(value):
     return tf.train.Feature(bytes_list=tf.train.BytesList(value=[value]))
     
-    
+
+
 parser = argparse.ArgumentParser()
-parser.add_argument('--data_dir', type=str, default=None)
+add_args.for_general(parser)
 parser.add_argument('--n_divides', type=int, default=1)
 parser.add_argument('--feature_name', type=str, default='alexnet')
 args = parser.parse_args()
@@ -56,7 +58,11 @@ for i in range(len(splits)):
             for f in seq:
                 # write camera images
                 camera = cv2.imread(os.path.join(camera_folder,f+'.jpg'))               # do not flip bgr for imencode
-                camera = cv2.resize(camera, (1024,576), interpolation=cv2.INTER_LINEAR) # please check if this is the desired size
+                camera = cv2.resize(
+                  camera, 
+                  tuple(args.image_size[::-1]),
+                  interpolation=cv2.INTER_LINEAR
+                ) # please check if this is the desired size
                 camera = cv2.imencode('.jpg', camera)[1].tostring()                     # imencode returns tuple(bool, ndarray)
                 camera_features.append(camera)
                 
@@ -68,13 +74,21 @@ for i in range(len(splits)):
                 #pdb.set_trace()
                 gazemap = cv2.imread(os.path.join(gazemap_folder, f+'.jpg'))[:,:,0]
                 gaze_ps = gazemap.astype(np.float32)
-                gaze_ps = cv2.resize(gaze_ps, (64,36), interpolation=cv2.INTER_AREA)
-                gaze_ps = gaze_ps.reshape((64*36,))
+                gaze_ps = cv2.resize(
+                  gaze_ps, 
+                  tuple(args.gazemap_size[::-1]), 
+                  interpolation=cv2.INTER_AREA
+                )
+                gaze_ps = gaze_ps.reshape((args.gazemap_size[0]*args.gazemap_size[1],))
                 gaze_ps = gaze_ps/np.sum(gaze_ps)
                 gaze_ps_features.append(_bytes_feature(gaze_ps.tostring()))
                 
                 # write gazemap images
-                gazemap = cv2.resize(gazemap, (1024,576), interpolation=cv2.INTER_AREA) # please check this size as well
+                gazemap = cv2.resize(
+                  gazemap, 
+                  tuple(args.image_size[::-1]), 
+                  interpolation=cv2.INTER_AREA
+                ) # please check this size as well
                 gazemap = cv2.imencode('.jpg', gazemap)[1].tostring()
                 gazemap_features.append(gazemap)
             
