@@ -28,21 +28,6 @@ def model_fn(features, labels, mode, params):
   gazemaps = features['gazemaps']
   labels = tf.reshape(labels, (-1, params['gazemap_size'][0]*params['gazemap_size'][1]))
   
-  # slow summary
-  slow_summaries = []
-  slow_summaries.append(
-    tf.summary.image('cameras', tf.reshape(cameras, [-1,]+params['image_size']+[3]), max_outputs=2)
-  )
-  slow_summaries.append(
-    tf.summary.image('gazemaps', tf.reshape(gazemaps, [-1,]+params['image_size']+[1]), max_outputs=2)
-  )
-  slow_summary_op = tf.summary.merge(slow_summaries, name='slow_summary')
-  slow_summary_hook = tf.train.SummarySaverHook(
-    2,
-    output_dir=params['model_dir'],
-    summary_op=slow_summary_op)
-  
-  
   # build up model
   logits = networks.big_conv_lstm_readout_net(feature_maps, 
                                               feature_map_size=params['feature_map_size'], 
@@ -53,9 +38,7 @@ def model_fn(features, labels, mode, params):
   predictions = {
       'ps': ps
   }
-  
   predicted_gazemaps = tf.reshape(ps, [-1,]+params['gazemap_size']+[1])
-  tf.summary.image('predictions', predicted_gazemaps, max_outputs=2)
   
   if mode == tf.estimator.ModeKeys.PREDICT:
     return tf.estimator.EstimatorSpec(mode=mode, predictions=predictions)
@@ -70,13 +53,40 @@ def model_fn(features, labels, mode, params):
   else:
     train_op = None
     
-    
   # set up metrics
   #TODO: write correlation coefficient as a accuracy metric
   accuracy = tf.contrib.metrics.streaming_pearson_correlation(ps, labels)
   metrics = {'accuracy': accuracy}
   
-  tf.summary.scalar('train_accuracy', accuracy[1])
+  
+  # set up summaries
+  quick_summaries = []
+  quick_summaries.append(tf.summary.scalar('accuracy', accuracy[1]))
+  quick_summaries.append(tf.summary.scalar('loss', loss))
+  quick_summary_op = tf.summary.merge(quick_summaries, name='quick_summary')
+  quick_summary_hook = tf.train.SummarySaverHook(
+    10,
+    output_dir=params['model_dir'],
+    summary_op=quick_summary_op
+  )
+    
+  # slow summary
+  slow_summaries = []
+  slow_summaries.append(
+    tf.summary.image('cameras', tf.reshape(cameras, [-1,]+params['image_size']+[3]), max_outputs=2)
+  )
+  slow_summaries.append(
+    tf.summary.image('gazemaps', tf.reshape(gazemaps, [-1,]+params['image_size']+[1]), max_outputs=2)
+  )
+  slow_summaries.append(
+    tf.summary.image('predictions', predicted_gazemaps, max_outputs=2)
+  )
+  slow_summary_op = tf.summary.merge(slow_summaries, name='slow_summary')
+  slow_summary_hook = tf.train.SummarySaverHook(
+    50,
+    output_dir=params['model_dir'],
+    summary_op=slow_summary_op
+  )
     
   
   return tf.estimator.EstimatorSpec(
@@ -85,7 +95,7 @@ def model_fn(features, labels, mode, params):
     loss=loss,
     train_op=train_op,
     eval_metric_ops=metrics,
-    training_hooks=[slow_summary_hook])
+    training_hooks=[quick_summary_hook, slow_summary_hook])
     
   
 
