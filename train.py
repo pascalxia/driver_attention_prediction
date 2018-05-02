@@ -183,9 +183,9 @@ def input_fn(dataset, batch_size, n_steps, shuffle, include_labels, n_epochs, ar
   
   dataset = dataset.map(_parse_function, num_parallel_calls=10)
   
-  padded_shapes = {'cameras': [None, 576, 1024, 3],#[None,]+args.image_size+[3],
+  padded_shapes = {'cameras': [None,]+args.image_size+[3],
                    'feature_maps': [None,]+args.feature_map_size+[args.feature_map_channels],
-                   'gazemaps': [None, 576, 1024, 1]}#[None,]+args.gazemap_size+[1]}
+                   'gazemaps': [None,]+args.image_size+[1]}
                    
   #padded_shapes = {'feature_maps': [None,]+args.feature_map_size+[args.feature_map_channels]}
                    
