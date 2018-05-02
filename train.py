@@ -9,7 +9,6 @@ import networks
 
 import add_args
 from keras import backend as K
-from tensorflow.python.training import basic_session_run_hooks
 import shutil
 
 import pdb
@@ -19,6 +18,8 @@ import pdb
 
 LEARNING_RATE = 1e-3
 
+
+
 def model_fn(features, labels, mode, params):
   """The model_fn argument for creating an Estimator."""
   # input
@@ -27,8 +28,20 @@ def model_fn(features, labels, mode, params):
   gazemaps = features['gazemaps']
   labels = tf.reshape(labels, (-1, params['gazemap_size'][0]*params['gazemap_size'][1]))
   
-  tf.summary.image('cameras', tf.reshape(cameras, [-1,]+params['image_size']+[3]), max_outputs=2)
-  tf.summary.image('gazemaps', tf.reshape(gazemaps, [-1,]+params['image_size']+[1]), max_outputs=2)
+  # slow summary
+  slow_summaries = []
+  slow_summaries.append(
+    tf.summary.image('cameras', tf.reshape(cameras, [-1,]+params['image_size']+[3]), max_outputs=2)
+  )
+  slow_summaries.append(
+    tf.summary.image('gazemaps', tf.reshape(gazemaps, [-1,]+params['image_size']+[1]), max_outputs=2)
+  )
+  slow_summary_op = tf.summary.merge(slow_summaries, name='slow_summary')
+  slow_summary_hook = tf.train.SummarySaverHook(
+    2,
+    output_dir=params['model_dir'],
+    summary_op=slow_summary_op)
+  
   
   # build up model
   logits = networks.big_conv_lstm_readout_net(feature_maps, 
@@ -71,7 +84,8 @@ def model_fn(features, labels, mode, params):
     predictions=predictions,
     loss=loss,
     train_op=train_op,
-    eval_metric_ops=metrics)
+    eval_metric_ops=metrics,
+    training_hooks=[slow_summary_hook])
     
   
 
@@ -204,13 +218,14 @@ def main(argv):
   res = sess.run(next_element)
   '''
   
-  config = tf.estimator.RunConfig(save_summary_steps=10,
+  config = tf.estimator.RunConfig(save_summary_steps=float('inf'),
                                   log_step_count_steps=10)
                                   
   params = {
     'image_size': args.image_size,
     'gazemap_size': args.gazemap_size,
-    'feature_map_size': args.feature_map_size
+    'feature_map_size': args.feature_map_size,
+    'model_dir': args.model_dir
   }
   
   model = tf.estimator.Estimator(
@@ -233,12 +248,12 @@ def main(argv):
   
   for _ in range(args.train_epochs // args.epochs_before_validation):
     # Train the model.
-    
     K.clear_session()
     model.train(input_fn=lambda: input_fn('training',
       args.batch_size, args.n_steps, 
       shuffle=True, include_labels=True, 
-      n_epochs=args.epochs_before_validation, args=args) )
+      n_epochs=args.epochs_before_validation, args=args)
+    )
     # validate the model
     K.clear_session()
     valid_results = model.evaluate(input_fn=lambda: input_fn('validation', 
