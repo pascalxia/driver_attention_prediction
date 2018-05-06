@@ -234,10 +234,15 @@ def for_lstm(parser):
      'default': None,
      'type': int,
      'help': 'number of time steps for each sequence'},
-     {
+    {
      'name': 'longest_seq',
      'default': None,
      'type': int,
-     'help': 'How many frames can the longest sequence contain'}
+     'help': 'How many frames can the longest sequence contain'},
+    {
+      'name': 'n_future_steps',
+      'default': 0,
+      'type': int,
+      'help': 'predict how many steps in the future'}
     ]
     add_args(args, parser)

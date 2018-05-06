@@ -23,6 +23,7 @@ def _bytes_feature(value):
 
 parser = argparse.ArgumentParser()
 add_args.for_general(parser)
+add_args.for_lstm(parser)
 parser.add_argument('--n_divides', type=int, default=1)
 parser.add_argument('--feature_name', type=str, default='alexnet')
 args = parser.parse_args()
@@ -48,16 +49,17 @@ for i in range(len(data_point_names)):
 for i in range(len(splits)):
     with tf.python_io.TFRecordWriter(
         os.path.join(tfrecord_folder, 
-        "cameras_gazes_%s_features_%d.tfrecords" % (args.feature_name, i) )) as writer:
+        "cameras_gazes_%s_features_%dfuture_%d.tfrecords" \
+          % (args.feature_name, args.n_future_steps, i) )) as writer:
         
         for seq in tqdm(splits[i]):
             camera_features = list()
             feature_map_features = list()
             gazemap_features = list()
             gaze_ps_features = list()
-            for f in seq:
+            for j in range(len(seq) - args.n_future_steps):
                 # write camera images
-                camera = cv2.imread(os.path.join(camera_folder,f+'.jpg'))               # do not flip bgr for imencode
+                camera = cv2.imread(os.path.join(camera_folder,seq[j]+'.jpg'))               # do not flip bgr for imencode
                 camera = cv2.resize(
                   camera, 
                   tuple(args.image_size[::-1]),
@@ -67,12 +69,13 @@ for i in range(len(splits)):
                 camera_features.append(camera)
                 
                 # write image feature maps
-                feature_map = np.load(os.path.join(feature_folder, f+'.npy'))
+                feature_map = np.load(os.path.join(feature_folder, seq[j]+'.npy'))
                 feature_map_features.append(_bytes_feature(feature_map.tostring()))
                 
                 # write gaze probability distribution
                 #pdb.set_trace()
-                gazemap = cv2.imread(os.path.join(gazemap_folder, f+'.jpg'))[:,:,0]
+                gazemap = cv2.imread(os.path.join(gazemap_folder, 
+                  seq[j+args.n_future_steps]+'.jpg'))[:,:,0]
                 gaze_ps = gazemap.astype(np.float32)
                 gaze_ps = cv2.resize(
                   gaze_ps, 

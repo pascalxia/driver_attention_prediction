@@ -106,9 +106,11 @@ def input_fn(dataset, batch_size, n_steps, shuffle, include_labels, n_epochs, ar
   """Prepare data for training."""
   
   # get and shuffle tfrecords files
-  files = tf.data.Dataset.list_files(os.path.join(args.data_dir, dataset,'tfrecords','cameras_gazes_'+args.feature_name+'_features_*.tfrecords'))
+  files = tf.data.Dataset.list_files(os.path.join(args.data_dir, dataset, 'tfrecords',
+    'cameras_gazes_'+args.feature_name+\
+    '_features_%dfuture_*.tfrecords' % args.n_future_steps))
   if shuffle:
-      files = files.shuffle(buffer_size=10)
+    files = files.shuffle(buffer_size=10)
   
   # parellel interleave to get raw bytes
   dataset = files.apply(tf.contrib.data.parallel_interleave(
@@ -116,7 +118,7 @@ def input_fn(dataset, batch_size, n_steps, shuffle, include_labels, n_epochs, ar
   
   # shuffle before parsing
   if shuffle:
-      dataset = dataset.shuffle(buffer_size=5*batch_size)
+    dataset = dataset.shuffle(buffer_size=5*batch_size)
   
   # parse data
   def _parse_function(example):
