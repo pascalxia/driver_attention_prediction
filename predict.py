@@ -10,6 +10,8 @@ import networks
 import add_args
 from keras import backend as K
 import shutil
+import numpy as np
+import scipy.misc as misc
 
 import pdb
 
@@ -26,7 +28,6 @@ def model_fn(features, labels, mode, params):
   cameras = features['cameras']
   feature_maps = features['feature_maps']
   gazemaps = features['gazemaps']
-  labels = tf.reshape(labels, (-1, params['gazemap_size'][0]*params['gazemap_size'][1]))
   
   video_id = features['video_id']
   predicted_time_points = features['predicted_time_points']
@@ -44,66 +45,10 @@ def model_fn(features, labels, mode, params):
   predicted_gazemaps = tf.reshape(ps, [-1,]+params['gazemap_size']+[1])
   
   if mode == tf.estimator.ModeKeys.PREDICT:
-    predictions['video_id'] = video_id
-    predictions['predicted_time_points'] = predicted_time_points
+    predictions['video_id'] = tf.tile(video_id, tf.shape(ps)[0:1])
+    predictions['predicted_time_points'] = tf.reshape(predicted_time_points, shape=[-1, 1])
     return tf.estimator.EstimatorSpec(mode=mode, predictions=predictions)
   
-  # set up loss
-  loss = tf.losses.softmax_cross_entropy(onehot_labels=labels, logits=logits)
-  
-  # set up training
-  if mode == tf.estimator.ModeKeys.TRAIN:
-    optimizer = tf.train.AdamOptimizer(learning_rate=LEARNING_RATE)
-    train_op = optimizer.minimize(loss, tf.train.get_or_create_global_step())
-  else:
-    train_op = None
-    
-  # set up metrics
-  #TODO: write correlation coefficient as a accuracy metric
-  accuracy = tf.contrib.metrics.streaming_pearson_correlation(ps, labels)
-  metrics = {'accuracy': accuracy}
-  
-  
-  # set up summaries
-  quick_summaries = []
-  quick_summaries.append(tf.summary.scalar('accuracy', accuracy[1]))
-  quick_summaries.append(tf.summary.scalar('loss', loss))
-  quick_summary_op = tf.summary.merge(quick_summaries, name='quick_summary')
-  quick_summary_hook = tf.train.SummarySaverHook(
-    10,
-    output_dir=params['model_dir'],
-    summary_op=quick_summary_op
-  )
-    
-  # slow summary
-  slow_summaries = []
-  slow_summaries.append(
-    tf.summary.image('cameras', tf.reshape(cameras, [-1,]+params['image_size']+[3]), max_outputs=2)
-  )
-  slow_summaries.append(
-    tf.summary.image('gazemaps', tf.reshape(gazemaps, [-1,]+params['image_size']+[1]), max_outputs=2)
-  )
-  slow_summaries.append(
-    tf.summary.image('predictions', predicted_gazemaps, max_outputs=2)
-  )
-  slow_summary_op = tf.summary.merge(slow_summaries, name='slow_summary')
-  slow_summary_hook = tf.train.SummarySaverHook(
-    50,
-    output_dir=params['model_dir'],
-    summary_op=slow_summary_op
-  )
-    
-  
-  return tf.estimator.EstimatorSpec(
-    mode=mode,
-    predictions=predictions,
-    loss=loss,
-    train_op=train_op,
-    eval_metric_ops=metrics,
-    training_hooks=[quick_summary_hook, slow_summary_hook])
-    
-  
-
 
 
 # Set up training and evaluation input functions.
@@ -229,11 +174,10 @@ def main(argv):
   add_args.for_general(parser)
   add_args.for_inference(parser)
   add_args.for_feature(parser)
-  add_args.for_training(parser)
   add_args.for_lstm(parser)
   args = parser.parse_args()
   
-  
+  '''
   this_input_fn=lambda: input_fn('training',
       args.batch_size, args.n_steps, 
       shuffle=True, include_labels=True, 
@@ -244,7 +188,7 @@ def main(argv):
   sess = tf.Session()
   pdb.set_trace()
   res = sess.run(next_element)
-  
+  '''
   
   config = tf.estimator.RunConfig(save_summary_steps=float('inf'),
                                   log_step_count_steps=10)
@@ -263,59 +207,23 @@ def main(argv):
     params=params)
   
   #pdb.set_trace()
-  #predict_generator = model.predict(input_fn = lambda: train_input_fn(args))
-  #res = next(predict_generator)
-  
-  # set up the directory to save the best checkpoint
-  best_ckpt_dir = os.path.join(args.model_dir, 'best_ckpt')
-  if not os.path.isdir(best_ckpt_dir):
-    os.makedirs(best_ckpt_dir)
-    smallest_loss = float('Inf')
-  else:
-    smallest_loss = [float(f.split('_')[1]) for f in os.listdir(best_ckpt_dir) if f.startswith('loss_')][0]
-  
-  for _ in range(args.train_epochs // args.epochs_before_validation):
-    # Train the model.
-    K.clear_session()
-    model.train(input_fn=lambda: input_fn('training',
-      args.batch_size, args.n_steps, 
-      shuffle=True, include_labels=True, 
-      n_epochs=args.epochs_before_validation, args=args)
-    )
-    # validate the model
-    K.clear_session()
-    valid_results = model.evaluate(input_fn=lambda: input_fn('validation', 
-      batch_size=1, n_steps=None, 
-      shuffle=False, include_labels=True, 
-      n_epochs=1, args=args) )
-    print(valid_results)
+  predict_generator = model.predict(input_fn = lambda: input_fn('validation', 
+    batch_size=1, n_steps=None, 
+    shuffle=False, include_labels=False, 
+    n_epochs=1, args=args) )
     
-    if valid_results['loss'] < smallest_loss:
-      smallest_loss = valid_results['loss']
-      # delete best_ckpt_dir
-      shutil.rmtree(best_ckpt_dir)
-      # re-make best_ckpt_dir as empty
-      os.makedirs(best_ckpt_dir)
-      # note down the new smallest loss
-      open(os.path.join(best_ckpt_dir, 'loss_%f' % smallest_loss), 'a').close()
-      # copy the checkpoint
-      files_to_copy = [f for f in os.listdir(args.model_dir) 
-        if f.startswith('model.ckpt-'+str(valid_results['global_step']))]
-      for f in files_to_copy:
-        shutil.copyfile(os.path.join(args.model_dir, f),
-          os.path.join(best_ckpt_dir, f))
-  
-  
-  
-  #model.train(input_fn=lambda: train_input_fn(args))
-
+  output_dir = os.path.join(args.model_dir, 'prediction')
+  if not os.path.isdir(output_dir):
+    os.makedirs(output_dir)
+  for res in predict_generator:
+    #pdb.set_trace()
     
-
-
-
-
-
-
+    output_path = os.path.join(output_dir, 
+      str(res['video_id'])+'_'+str(res['predicted_time_points'][0]).zfill(5)+'.jpg')
+    gazemap = np.reshape(res['ps'], args.gazemap_size)
+    misc.imsave(output_path, gazemap)
+    #print('test')
+  
 
 
 
