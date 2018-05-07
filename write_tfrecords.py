@@ -39,7 +39,7 @@ if not os.path.isdir(tfrecord_folder):
 
 data_point_names = dpc.get_data_point_names(args.data_dir, in_sequences=True)
 ##################### DEBUG ######################
-data_point_names = data_point_names[:20]
+#data_point_names = data_point_names[:20]
 
 random.shuffle(data_point_names)
 splits = [[] for _ in range(args.n_divides)]
