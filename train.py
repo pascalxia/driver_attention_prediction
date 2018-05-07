@@ -40,9 +40,6 @@ def model_fn(features, labels, mode, params):
   }
   predicted_gazemaps = tf.reshape(ps, [-1,]+params['gazemap_size']+[1])
   
-  if mode == tf.estimator.ModeKeys.PREDICT:
-    return tf.estimator.EstimatorSpec(mode=mode, predictions=predictions)
-  
   # set up loss
   loss = tf.losses.softmax_cross_entropy(onehot_labels=labels, logits=logits)
   
@@ -228,7 +225,7 @@ def main(argv):
   add_args.for_lstm(parser)
   args = parser.parse_args()
   
-  
+  '''
   this_input_fn=lambda: input_fn('training',
       args.batch_size, args.n_steps, 
       shuffle=True, include_labels=True, 
@@ -239,7 +236,7 @@ def main(argv):
   sess = tf.Session()
   pdb.set_trace()
   res = sess.run(next_element)
-  
+  '''
   
   config = tf.estimator.RunConfig(save_summary_steps=float('inf'),
                                   log_step_count_steps=10)
