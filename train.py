@@ -125,11 +125,13 @@ def input_fn(dataset, batch_size, n_steps, shuffle, include_labels, n_epochs, ar
     # parsing
     context_feature_info = {
       'cameras': tf.VarLenFeature(dtype=tf.string),
-      'gazemaps': tf.VarLenFeature(dtype=tf.string)
+      'gazemaps': tf.VarLenFeature(dtype=tf.string),
+      'video_id': tf.FixedLenFeature(shape=[], dtype=tf.int64)
     }
     sequence_feature_info = {
       'feature_maps': tf.FixedLenSequenceFeature(shape=[], dtype=tf.string),
-      'gaze_ps': tf.FixedLenSequenceFeature(shape=[], dtype=tf.string)
+      'gaze_ps': tf.FixedLenSequenceFeature(shape=[], dtype=tf.string),
+      'predicted_time_points': tf.FixedLenSequenceFeature(shape=[], dtype=tf.int64)
     }
     context_features, sequence_features = tf.parse_single_sequence_example(example, 
       context_features=context_feature_info,
@@ -137,9 +139,12 @@ def input_fn(dataset, batch_size, n_steps, shuffle, include_labels, n_epochs, ar
     
     cameras = tf.sparse_tensor_to_dense(context_features["cameras"], default_value='')
     gazemaps = tf.sparse_tensor_to_dense(context_features["gazemaps"], default_value='')
+    video_id = context_features['video_id']
     
     feature_maps = tf.reshape(tf.decode_raw(sequence_features["feature_maps"], tf.float32), 
       [-1,]+args.feature_map_size+[args.feature_map_channels])
+    predicted_time_points = sequence_features["predicted_time_points"]
+    
     
     if include_labels:
       labels = tf.reshape(tf.decode_raw(sequence_features["gaze_ps"], tf.float32), 
@@ -155,7 +160,9 @@ def input_fn(dataset, batch_size, n_steps, shuffle, include_labels, n_epochs, ar
       cameras = cameras[offset:end]
       feature_maps = feature_maps[offset:end]
       gazemaps = gazemaps[offset:end]
-      labels = labels[offset:end]
+      predicted_time_points = predicted_time_points[offset:end]
+      if include_labels:
+        labels = labels[offset:end]
     
     # decode jpg's
     cameras = tf.map_fn(
@@ -177,6 +184,8 @@ def input_fn(dataset, batch_size, n_steps, shuffle, include_labels, n_epochs, ar
     features['cameras'] = cameras
     features['feature_maps'] = feature_maps
     features['gazemaps'] = gazemaps
+    features['video_id'] = video_id
+    features['predicted_time_points'] = predicted_time_points
     
     if include_labels:
         return features, labels
@@ -187,7 +196,9 @@ def input_fn(dataset, batch_size, n_steps, shuffle, include_labels, n_epochs, ar
   
   padded_shapes = {'cameras': [None,]+args.image_size+[3],
                    'feature_maps': [None,]+args.feature_map_size+[args.feature_map_channels],
-                   'gazemaps': [None,]+args.image_size+[1]}
+                   'gazemaps': [None,]+args.image_size+[1],
+                   'video_id': [],
+                   'predicted_time_points': [None,]}
                    
   #padded_shapes = {'feature_maps': [None,]+args.feature_map_size+[args.feature_map_channels]}
                    
@@ -217,7 +228,7 @@ def main(argv):
   add_args.for_lstm(parser)
   args = parser.parse_args()
   
-  '''
+  
   this_input_fn=lambda: input_fn('training',
       args.batch_size, args.n_steps, 
       shuffle=True, include_labels=True, 
@@ -228,7 +239,7 @@ def main(argv):
   sess = tf.Session()
   pdb.set_trace()
   res = sess.run(next_element)
-  '''
+  
   
   config = tf.estimator.RunConfig(save_summary_steps=float('inf'),
                                   log_step_count_steps=10)

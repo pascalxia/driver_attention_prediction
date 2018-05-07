@@ -39,7 +39,7 @@ if not os.path.isdir(tfrecord_folder):
 
 data_point_names = dpc.get_data_point_names(args.data_dir, in_sequences=True)
 ##################### DEBUG ######################
-#data_point_names = data_point_names[:20]
+data_point_names = data_point_names[:20]
 
 random.shuffle(data_point_names)
 splits = [[] for _ in range(args.n_divides)]
@@ -57,6 +57,8 @@ for i in range(len(splits)):
             feature_map_features = list()
             gazemap_features = list()
             gaze_ps_features = list()
+            video_id = int(seq[0].split('_')[0])
+            predicted_time_point_features = list()
             for j in range(len(seq) - args.n_future_steps):
                 # write camera images
                 camera = cv2.imread(os.path.join(camera_folder,seq[j]+'.jpg'))               # do not flip bgr for imencode
@@ -94,11 +96,18 @@ for i in range(len(splits)):
                 ) # please check this size as well
                 gazemap = cv2.imencode('.jpg', gazemap)[1].tostring()
                 gazemap_features.append(gazemap)
+                
+                # write frame names
+                time_point = int(seq[j+args.n_future_steps].split('_')[1])
+                predicted_time_point_features.append(_int64_feature(time_point))
             
             feature_lists = {'feature_maps': tf.train.FeatureList(feature=feature_map_features),
-                             'gaze_ps': tf.train.FeatureList(feature=gaze_ps_features)}
+                             'gaze_ps': tf.train.FeatureList(feature=gaze_ps_features),
+                             'predicted_time_points': \
+                               tf.train.FeatureList(feature=predicted_time_point_features)}
             features = {'cameras': tf.train.Feature(bytes_list=tf.train.BytesList(value=camera_features)),
-                        'gazemaps': tf.train.Feature(bytes_list=tf.train.BytesList(value=gazemap_features))}
+                        'gazemaps': tf.train.Feature(bytes_list=tf.train.BytesList(value=gazemap_features)),
+                        'video_id': tf.train.Feature(int64_list=tf.train.Int64List(value=[video_id]))}
             
             example = tf.train.SequenceExample(
                 context=tf.train.Features(feature=features),
