@@ -173,6 +173,7 @@ def main(argv):
   parser = argparse.ArgumentParser()
   add_args.for_general(parser)
   add_args.for_inference(parser)
+  add_args.for_evaluation(parser)
   add_args.for_feature(parser)
   add_args.for_lstm(parser)
   args = parser.parse_args()
@@ -207,12 +208,26 @@ def main(argv):
     params=params)
   
   #pdb.set_trace()
-  predict_generator = model.predict(input_fn = lambda: input_fn('validation', 
-    batch_size=1, n_steps=None, 
-    shuffle=False, include_labels=False, 
-    n_epochs=1, args=args) )
+  #determine which checkpoint to restore
+  if args.model_iteration is None:
+    best_ckpt_dir = os.path.join(args.model_dir, 'best_ckpt')
+    if os.path.isdir(best_ckpt_dir):
+      ckpt_name = [f.split('.index')[0] for f in os.listdir(best_ckpt_dir) if f.endswith('.index')][0]
+      ckpt_path = os.path.join(best_ckpt_dir, ckpt_name)
+      args.model_iteration = ckpt_name.split('-')[1]
+  else:
+    ckpt_name = 'model.ckpt-'+model_iteration
+    ckpt_path = os.path.join(args.model_dir, ckpt_name)
+  
+  predict_generator = model.predict(
+    input_fn = lambda: input_fn('validation', 
+      batch_size=1, n_steps=None, 
+      shuffle=False, include_labels=False, 
+      n_epochs=1, args=args),
+    checkpoint_path=ckpt_path)
     
-  output_dir = os.path.join(args.model_dir, 'prediction')
+  
+  output_dir = os.path.join(args.model_dir, 'prediction_iter_'+args.model_iteration)
   if not os.path.isdir(output_dir):
     os.makedirs(output_dir)
   for res in predict_generator:
