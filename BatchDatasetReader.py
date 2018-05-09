@@ -9,6 +9,7 @@ import random
 from keras.preprocessing.image import ImageDataGenerator
 import feather
 import ut
+import os.path as path
 
 
 MAX_SEED = 99999
@@ -53,7 +54,7 @@ class BatchDataset:
                                             rotation_range=10,
                                             fill_mode='constant')
         if weight_data:
-             df = feather.read_dataframe(data_dir+'sampling_weights.feather')
+             df = feather.read_dataframe(path.join(data_dir,'sampling_weights.feather'))
              df.set_index('fileName', inplace=True)
              self.data_weight_df = df
              self.prepare_sampling_weights()
@@ -64,11 +65,11 @@ class BatchDataset:
             
         self.seed = 0
         if feature_name=='vgg':
-            self.feature_folder = 'image_features/'
+            self.feature_folder = 'image_features'
         elif feature_name=='bdd':
-            self.feature_folder = 'image_features_bdd/'
+            self.feature_folder = 'image_features_bdd'
         elif feature_name=='alexnet':
-            self.feature_folder = 'image_features_alexnet/'
+            self.feature_folder = 'image_features_alexnet'
                 
     
     
@@ -85,16 +86,16 @@ class BatchDataset:
     
     
     def read_image(self, data_point_name):
-        return misc.imread(self.data_dir+'camera_images/'+
-                           data_point_name+'.jpg')
+        return misc.imread(path.join(self.data_dir,'camera_images',
+                                     data_point_name+'.jpg'))
         
     def read_annotation(self, data_point_name):
-        annotation = misc.imread(self.data_dir+'gazemap_images/'+
-                                 data_point_name+'.jpg')
+        annotation = misc.imread(path.join(self.data_dir,'gazemap_images',
+                                           data_point_name+'.jpg'))
         return annotation[:,:,0]
     
     def read_feature_map(self, data_point_name):
-        return np.load(self.data_dir+self.feature_folder+data_point_name+'.npy')
+        return np.load(path.join(self.data_dir,self.feature_folder,data_point_name+'.npy'))
     
     def get_images(self, data_point_names, augment=None):
         desired_size = self.image_size
