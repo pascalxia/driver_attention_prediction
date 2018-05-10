@@ -260,9 +260,10 @@ def main(argv):
   
   # set up the directory to save the best checkpoint
   best_ckpt_dir = os.path.join(args.model_dir, 'best_ckpt')
-  if not os.path.isdir(best_ckpt_dir):
-    os.makedirs(best_ckpt_dir)
+  if not os.path.isdir(best_ckpt_dir) or len(os.listdir(best_ckpt_dir))==0:
     smallest_loss = float('Inf')
+    if not os.path.isdir(best_ckpt_dir):
+      os.makedirs(best_ckpt_dir)
   else:
     smallest_loss = [float(f.split('_')[1]) for f in os.listdir(best_ckpt_dir) if f.startswith('loss_')][0]
   
