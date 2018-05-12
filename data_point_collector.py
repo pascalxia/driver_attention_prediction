@@ -102,7 +102,7 @@ def get_data_point_names(directory, in_sequences=False, keep_prediction_rate=Tru
     if longest_seq is not None:
         #avoid sequences that are too long to avoid memory error
         size_threshold = longest_seq
-        data_point_names = crop_long_seqs(data_point_names, size_threshold)
+        data_point_names = seperate_long_seqs(data_point_names, size_threshold)
 
     no_of_videos = len(data_point_names)
     print ('No. of %s videos: %d' % (directory, no_of_videos))
@@ -122,3 +122,19 @@ def crop_long_seqs(data_point_names, size_threshold):
         data_point_names.append(seq[size_threshold:])
         data_point_names[i] = seq[:size_threshold]
     return crop_long_seqs(data_point_names, size_threshold)
+    
+    
+def seperate_long_seqs(data_point_names, size_threshold):
+    new_data_point_names = list()
+    for seq in data_point_names:
+        length = len(seq)
+        n_parts = length // size_threshold
+        for i in range(n_parts):
+            new_data_point_names.append(
+                seq[i*size_threshold : (i+1)*size_threshold])
+        new_data_point_names.append(
+            seq[n_parts*size_threshold : length]
+        )
+    return new_data_point_names
+        
+        

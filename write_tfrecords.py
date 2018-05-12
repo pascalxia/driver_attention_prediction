@@ -20,7 +20,6 @@ def _bytes_feature(value):
     return tf.train.Feature(bytes_list=tf.train.BytesList(value=[value]))
     
 
-
 parser = argparse.ArgumentParser()
 add_args.for_general(parser)
 add_args.for_lstm(parser)
@@ -37,7 +36,8 @@ tfrecord_folder = os.path.join(args.data_dir, 'tfrecords')
 if not os.path.isdir(tfrecord_folder):
     os.makedirs(tfrecord_folder)
 
-data_point_names = dpc.get_data_point_names(args.data_dir, in_sequences=True)
+data_point_names = dpc.get_data_point_names(args.data_dir, in_sequences=True,
+    longest_seq=args.longest_seq)
 ##################### DEBUG ######################
 #data_point_names = data_point_names[:20]
 
@@ -52,6 +52,7 @@ for i in range(len(splits)):
         "cameras_gazes_%s_features_%dfuture_%d.tfrecords" \
           % (args.feature_name, args.n_future_steps, i) )) as writer:
         
+        
         for seq in tqdm(splits[i]):
             camera_features = list()
             feature_map_features = list()
@@ -59,6 +60,8 @@ for i in range(len(splits)):
             gaze_ps_features = list()
             video_id = int(seq[0].split('_')[0])
             predicted_time_point_features = list()
+            weight_features = list()
+            
             for j in range(len(seq) - args.n_future_steps):
                 # write camera images
                 camera = cv2.imread(os.path.join(camera_folder,seq[j]+'.jpg'))               # do not flip bgr for imencode
@@ -71,13 +74,22 @@ for i in range(len(splits)):
                 camera_features.append(camera)
                 
                 # write image feature maps
-                feature_map = np.load(os.path.join(feature_folder, seq[j]+'.npy'))
+                try:
+                  feature_map = np.load(os.path.join(feature_folder, seq[j]+'.npy'))
+                except FileNotFoundError:
+                  print('No feature map for %s' % seq[j])
+                  camera_features.pop()
+                  continue
                 feature_map_features.append(_bytes_feature(feature_map.tostring()))
                 
                 # write gaze probability distribution
-                #pdb.set_trace()
-                gazemap = cv2.imread(os.path.join(gazemap_folder, 
-                  seq[j+args.n_future_steps]+'.jpg'))[:,:,0]
+                try:
+                  gazemap = cv2.imread(os.path.join(gazemap_folder, 
+                    seq[j+args.n_future_steps]+'.jpg'))[:,:,0]
+                except FileNotFoundError:
+                  print('No gaze map for %s' % seq[j+args.n_future_steps])
+                  camera_features.pop()
+                  continue
                 gaze_ps = gazemap.astype(np.float32)
                 gaze_ps = cv2.resize(
                   gaze_ps, 
@@ -85,7 +97,10 @@ for i in range(len(splits)):
                   interpolation=cv2.INTER_AREA
                 )
                 gaze_ps = gaze_ps.reshape((args.gazemap_size[0]*args.gazemap_size[1],))
-                gaze_ps = gaze_ps/np.sum(gaze_ps)
+                gaze_sum = np.sum(gaze_ps)
+                if gaze_sum!=0:
+                  gaze_ps = gaze_ps/gaze_sum
+
                 gaze_ps_features.append(_bytes_feature(gaze_ps.tostring()))
                 
                 # write gazemap images
@@ -100,11 +115,19 @@ for i in range(len(splits)):
                 # write frame names
                 time_point = int(seq[j+args.n_future_steps].split('_')[1])
                 predicted_time_point_features.append(_int64_feature(time_point))
+                
+                # write sampling weights
+                if gaze_sum==0:
+                  weight = float(0)
+                else:
+                  weight = float(1)
+                weight_features.append(tf.train.Feature(float_list=tf.train.FloatList(value=[weight])))
             
             feature_lists = {'feature_maps': tf.train.FeatureList(feature=feature_map_features),
                              'gaze_ps': tf.train.FeatureList(feature=gaze_ps_features),
                              'predicted_time_points': \
-                               tf.train.FeatureList(feature=predicted_time_point_features)}
+                               tf.train.FeatureList(feature=predicted_time_point_features),
+                             'weights': tf.train.FeatureList(feature=weight_features)}
             features = {'cameras': tf.train.Feature(bytes_list=tf.train.BytesList(value=camera_features)),
                         'gazemaps': tf.train.Feature(bytes_list=tf.train.BytesList(value=gazemap_features)),
                         'video_id': tf.train.Feature(int64_list=tf.train.Int64List(value=[video_id]))}
@@ -113,5 +136,6 @@ for i in range(len(splits)):
                 context=tf.train.Features(feature=features),
                 feature_lists=tf.train.FeatureLists(feature_list=feature_lists))
             writer.write(example.SerializeToString())
-        
+            
+
 
