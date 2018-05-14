@@ -26,6 +26,11 @@ def model_fn(features, labels, mode, params):
   cameras = features['cameras']
   feature_maps = features['feature_maps']
   gazemaps = features['gazemaps']
+  if params['weight_data']:
+    weights = features['weights']
+    weights = tf.reshape(weights, (-1,))
+  else:
+    weights = None
   labels = tf.reshape(labels, (-1, params['gazemap_size'][0]*params['gazemap_size'][1]))
   
   # build up model
@@ -41,7 +46,7 @@ def model_fn(features, labels, mode, params):
   predicted_gazemaps = tf.reshape(ps, [-1,]+params['gazemap_size']+[1])
   
   # set up loss
-  loss = tf.losses.softmax_cross_entropy(onehot_labels=labels, logits=logits)
+  loss = tf.losses.softmax_cross_entropy(onehot_labels=labels, logits=logits, weights=weights)
   
   # set up training
   if mode == tf.estimator.ModeKeys.TRAIN:
@@ -52,7 +57,7 @@ def model_fn(features, labels, mode, params):
     
   # set up metrics
   #TODO: write correlation coefficient as a accuracy metric
-  accuracy = tf.contrib.metrics.streaming_pearson_correlation(ps, labels)
+  accuracy = tf.contrib.metrics.streaming_pearson_correlation(ps, labels, weights=weights)
   metrics = {'accuracy': accuracy}
   
   
@@ -128,7 +133,8 @@ def input_fn(dataset, batch_size, n_steps, shuffle, include_labels, n_epochs, ar
     sequence_feature_info = {
       'feature_maps': tf.FixedLenSequenceFeature(shape=[], dtype=tf.string),
       'gaze_ps': tf.FixedLenSequenceFeature(shape=[], dtype=tf.string),
-      'predicted_time_points': tf.FixedLenSequenceFeature(shape=[], dtype=tf.int64)
+      'predicted_time_points': tf.FixedLenSequenceFeature(shape=[], dtype=tf.int64),
+      'weights': tf.FixedLenSequenceFeature(shape=[], dtype=tf.float32)
     }
     context_features, sequence_features = tf.parse_single_sequence_example(example, 
       context_features=context_feature_info,
@@ -141,6 +147,7 @@ def input_fn(dataset, batch_size, n_steps, shuffle, include_labels, n_epochs, ar
     feature_maps = tf.reshape(tf.decode_raw(sequence_features["feature_maps"], tf.float32), 
       [-1,]+args.feature_map_size+[args.feature_map_channels])
     predicted_time_points = sequence_features["predicted_time_points"]
+    weights = sequence_features['weights']
     
     
     if include_labels:
@@ -158,6 +165,7 @@ def input_fn(dataset, batch_size, n_steps, shuffle, include_labels, n_epochs, ar
       feature_maps = feature_maps[offset:end]
       gazemaps = gazemaps[offset:end]
       predicted_time_points = predicted_time_points[offset:end]
+      weights = weights[offset:end]
       if include_labels:
         labels = labels[offset:end]
     
@@ -183,6 +191,7 @@ def input_fn(dataset, batch_size, n_steps, shuffle, include_labels, n_epochs, ar
     features['gazemaps'] = gazemaps
     features['video_id'] = video_id
     features['predicted_time_points'] = predicted_time_points
+    features['weights'] = weights
     
     if include_labels:
         return features, labels
@@ -195,7 +204,8 @@ def input_fn(dataset, batch_size, n_steps, shuffle, include_labels, n_epochs, ar
                    'feature_maps': [None,]+args.feature_map_size+[args.feature_map_channels],
                    'gazemaps': [None,]+args.image_size+[1],
                    'video_id': [],
-                   'predicted_time_points': [None,]}
+                   'predicted_time_points': [None,],
+                   'weights': [None,]}
                    
   #padded_shapes = {'feature_maps': [None,]+args.feature_map_size+[args.feature_map_channels]}
                    
@@ -245,7 +255,8 @@ def main(argv):
     'image_size': args.image_size,
     'gazemap_size': args.gazemap_size,
     'feature_map_size': args.feature_map_size,
-    'model_dir': args.model_dir
+    'model_dir': args.model_dir,
+    'weight_data': args.weight_data
   }
   
   model = tf.estimator.Estimator(
