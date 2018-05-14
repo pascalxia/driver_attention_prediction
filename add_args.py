@@ -35,7 +35,12 @@ def for_general(parser):
      'nargs': 2,
      'default': [36,64],
      'type': int,
-     'help': 'Size of the predicted gaze map'}
+     'help': 'Size of the predicted gaze map'},
+    {
+     'name': 'weight_data',
+     'default': False,
+     'type': bool,
+     'help': 'whether to weight the data points differently in trianing'}
     ]
     add_args(args, parser)
 
@@ -165,12 +170,7 @@ def for_training(parser):
      'name': 'logs_dir',
      'default': None,
      'type': str,
-     'help': 'path to logs directory'},
-    {
-     'name': 'weight_data',
-     'default': False,
-     'type': bool,
-     'help': 'whether to weight the data points differently in trianing'}
+     'help': 'path to logs directory'}
     ]
     add_args(args, parser)
     

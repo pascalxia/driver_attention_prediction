@@ -8,6 +8,7 @@ import argparse
 import add_args
 import random
 import pdb
+import feather
 
 
 import data_point_collector as dpc
@@ -45,6 +46,13 @@ random.shuffle(data_point_names)
 splits = [[] for _ in range(args.n_divides)]
 for i in range(len(data_point_names)):
     splits[i%args.n_divides].append(data_point_names[i])
+    
+    
+# get data weights
+if args.weight_data:
+    weight_table = feather.read_dataframe(os.path.join(args.data_dir, 'sampling_weights.feather'))
+    weight_table = weight_table.set_index(['clipInt', 'time'])
+    
 
 for i in range(len(splits)):
     with tf.python_io.TFRecordWriter(
@@ -120,7 +128,10 @@ for i in range(len(splits)):
                 if gaze_sum==0:
                   weight = float(0)
                 else:
-                  weight = float(1)
+                  if args.weight_data:
+                    weight = weight_table.loc[(video_id, time_point), 'weight']
+                  else:
+                    weight = float(1)
                 weight_features.append(tf.train.Feature(float_list=tf.train.FloatList(value=[weight])))
             
             feature_lists = {'feature_maps': tf.train.FeatureList(feature=feature_map_features),
