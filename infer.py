@@ -12,7 +12,7 @@ import shutil
 import numpy as np
 import scipy.misc as misc
 
-import pdb
+
 
 def model_fn(features, labels, mode, params):
     """The model_fn argument for creating an Estimator."""
@@ -181,7 +181,15 @@ def main(argv):
     if not os.path.isdir(output_dir):
         os.makedirs(output_dir)
     
+    previous_video_id = None
     for res in predict_generator:
+        if previous_video_id is None:
+            print('Start inference for video: %s' % res['video_id'])
+            previous_video_id = res['video_id']
+        elif res['video_id'] != previous_video_id:
+            print('Start inference for video: %s' % res['video_id'])
+            previous_video_id = res['video_id']
+            
         output_path = os.path.join(output_dir, 
             str(res['video_id'])+'_'+str(res['predicted_time_points'][0]).zfill(5)+'.jpg')
         gazemap = np.reshape(res['ps'], args.gazemap_size)
