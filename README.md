@@ -17,7 +17,7 @@ This project accompanies the paper **_Training a network to attend like human dr
 
 ## Using Our Code:
 ### Dependencies
-The code was written with Tensorflow 1.5, Keras 2.1.5 and some other common packages. A Docker image (blindgrandpa/tf150_kr215) was prepared for running the code. The Dockerfile of that Docker image is at ./docker_images/tf150_kr215/ in this repo. The Dockerfile lists all the dependencies. In order to use this Docker image to run our code, you need to have nvidia-docker installed.
+The code was written with Tensorflow 1.5, Keras 2.1.5 and some other common packages. A Docker image (blindgrandpa/tf150_kr215) was prepared for running the code. The Dockerfile of that Docker image is at `./docker_images/tf150_kr215/` in this repo. The Dockerfile lists all the dependencies. In order to use this Docker image to run our code, you need to have nvidia-docker installed.
 
 
 ### Use our model to do inference on your videos
@@ -49,8 +49,10 @@ python write_tfrecords_for_inference.py \
 
 4. Download the pre-trained weights. Download [this zip file](https://drive.google.com/file/d/1q_CgyX73wrYTAsZjDF9aMXNPURcUmWVy/view?usp=sharing) and unzip it to `./`
 
+5. Download the pre-trained weights of Alexnet. Downlaod [bvlc_alexnet.npy](https://www.cs.toronto.edu/~guerzhoy/tf_alexnet/bvlc_alexnet.npy) and put it at `./`
 
-5. Predict driver attention maps by runnning the following command. The predicted attention maps will be at `./pretrained_models/prediction_iter_0/`. The files will be named in the pattern "VideoName_TimeInMilliseconds.jpg".
+
+6. Predict driver attention maps by runnning the following command. The predicted attention maps will be at `./pretrained_models/prediction_iter_0/`. The files will be named in the pattern "VideoName_TimeInMilliseconds.jpg".
 ```bash
 python infer.py \
 --data_dir=data \
