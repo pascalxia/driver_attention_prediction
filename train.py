@@ -83,7 +83,7 @@ def model_fn(features, labels, mode, params):
   
   # set up summaries
   quick_summaries = []
-  quick_summaries.append(tf.summary.scalar('accuracy', accuracy[1]))
+  quick_summaries.append(tf.summary.scalar('kl', kl[1]))
   quick_summaries.append(tf.summary.scalar('custom_cc', custom_cc[1]))
   quick_summaries.append(tf.summary.scalar('loss', loss))
   quick_summary_op = tf.summary.merge(quick_summaries, name='quick_summary')
