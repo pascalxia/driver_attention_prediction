@@ -59,22 +59,26 @@ def model_fn(features, labels, mode, params):
     train_op = None
     
   # set up metrics
-  accuracy = tf.contrib.metrics.streaming_pearson_correlation(ps, labels, weights=weights)
-  
+  # Calculate correlation coefficient
   s1 = ps - tf.reduce_mean(ps, axis=1, keepdims=True)
   s2 = labels - tf.reduce_mean(labels, axis=1, keepdims=True)
   custom_cc = tf.reduce_sum(tf.multiply(s1, s2), axis=1)/tf.sqrt(tf.reduce_sum(tf.pow(s1,2), axis=1)*tf.reduce_sum(tf.pow(s2,2), axis=1))
-  if params['weight_data']:
-    custom_cc = weights*custom_cc
-  
+  custom_cc = weights*custom_cc
   # Exclude NaNs.
   mask = tf.logical_not(tf.is_finite(custom_cc))
   custom_cc = tf.boolean_mask(custom_cc, mask)
   custom_cc = tf.metrics.mean(custom_cc)
   
+  # Calculate KL-divergence
+  _labels = tf.maximum(labels, params['epsilon'])
+  p_entropies = tf.reduce_sum(-tf.multiply(_labels, tf.log(_labels)), axis=1)
+  kls = loss - p_entropies
+  kls = weights*kls
+  kl = tf.metrics.mean(kls)
+  
   metrics = {
-    'accuracy': accuracy,
-    'custom_cc': custom_cc,}
+    'custom_cc': custom_cc,
+    'kl': kl,}
   
   
   # set up summaries
