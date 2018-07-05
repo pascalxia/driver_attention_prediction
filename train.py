@@ -30,8 +30,11 @@ def model_fn(features, labels, mode, params):
     weights = features['weights']
     weights = tf.reshape(weights, (-1,))
   else:
-    weights = None
+    weights = 1.0
   labels = tf.reshape(labels, (-1, params['gazemap_size'][0]*params['gazemap_size'][1]))
+  
+  video_id = features['video_id']
+  predicted_time_points = features['predicted_time_points']
   
   # build up model
   logits = networks.big_conv_lstm_readout_net(feature_maps, 
@@ -58,12 +61,54 @@ def model_fn(features, labels, mode, params):
   # set up metrics
   #TODO: write correlation coefficient as a accuracy metric
   accuracy = tf.contrib.metrics.streaming_pearson_correlation(ps, labels, weights=weights)
-  metrics = {'accuracy': accuracy}
+  
+  s1 = ps - tf.reduce_mean(ps, axis=1, keepdims=True)
+  s2 = labels - tf.reduce_mean(labels, axis=1, keepdims=True)
+  '''
+  # Make sure no row of ps has a standard deviation of 0. 
+  std_ps = tf.sqrt(tf.reduce_sum(tf.pow(s1,2), axis=1)/tf.to_float(tf.shape(s1)[1]))
+  assert_op = tf.Assert(tf.reduce_all(tf.greater(std_ps, 0)), 
+                        [std_ps, video_id, predicted_time_points],
+                        summarize=1000)
+  with tf.control_dependencies([assert_op]):
+    std_ps = tf.identity(std_ps)
+  std_ps = tf.metrics.mean(std_ps)
+  
+  # Make sure no row of labels has a standard deviation of 0. 
+  std_labels = tf.sqrt(tf.reduce_sum(tf.pow(s2,2), axis=1)/tf.to_float(tf.shape(s2)[1]))
+  assert_op = tf.Assert(tf.reduce_all(tf.greater(std_labels, 0)), 
+                        [std_labels, video_id, predicted_time_points],
+                        summarize=1000)
+  with tf.control_dependencies([assert_op]):
+    std_labels = tf.identity(std_labels)
+  std_labels = tf.metrics.mean(std_labels)
+  '''
+  custom_cc = tf.reduce_sum(tf.multiply(s1, s2), axis=1)/tf.sqrt(tf.reduce_sum(tf.pow(s1,2), axis=1)*tf.reduce_sum(tf.pow(s2,2), axis=1))
+  if params['weight_data']:
+    # Exclude the entries that have weights of 0s because they may be NaNs.
+    mask = tf.not_equal(weights, 0)
+    custom_cc = tf.boolean_mask(custom_cc, mask)
+    # Apply the non-zero weights
+    custom_cc = custom_cc*tf.boolean_mask(weights, tf.not_equal(weights, 0))
+  # Make sure there is no NaN
+  assert_op = tf.Assert(tf.reduce_all(tf.is_finite(custom_cc)), 
+                        [custom_cc, tf.where(tf.logical_not(tf.is_finite(custom_cc))), weights, video_id, predicted_time_points],
+                        summarize=1000)
+  with tf.control_dependencies([assert_op]):
+    custom_cc = tf.identity(custom_cc)
+  custom_cc = tf.metrics.mean(custom_cc)
+  
+  
+  
+  metrics = {
+    'accuracy': accuracy,
+    'custom_cc': custom_cc,}
   
   
   # set up summaries
   quick_summaries = []
   quick_summaries.append(tf.summary.scalar('accuracy', accuracy[1]))
+  quick_summaries.append(tf.summary.scalar('custom_cc', custom_cc[1]))
   quick_summaries.append(tf.summary.scalar('loss', loss))
   quick_summary_op = tf.summary.merge(quick_summaries, name='quick_summary')
   quick_summary_hook = tf.train.SummarySaverHook(
@@ -108,9 +153,14 @@ def input_fn(dataset, batch_size, n_steps, shuffle, include_labels, n_epochs, ar
   """Prepare data for training."""
   
   # get and shuffle tfrecords files
-  files = tf.data.Dataset.list_files(os.path.join(args.data_dir, dataset, 'tfrecords',
-    'cameras_gazes_'+args.feature_name+\
-    '_features_%dfuture_*.tfrecords' % args.n_future_steps))
+  if args.weight_data:
+    files = tf.data.Dataset.list_files(os.path.join(args.data_dir, dataset, 'tfrecords_weighted',
+      'cameras_gazes_'+args.feature_name+\
+      '_features_%dfuture_*.tfrecords' % args.n_future_steps))
+  else:
+    files = tf.data.Dataset.list_files(os.path.join(args.data_dir, dataset, 'tfrecords',
+      'cameras_gazes_'+args.feature_name+\
+      '_features_%dfuture_*.tfrecords' % args.n_future_steps))
   if shuffle:
     files = files.shuffle(buffer_size=10)
   
