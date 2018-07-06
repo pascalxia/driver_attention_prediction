@@ -71,6 +71,10 @@ def model_fn(features, labels, mode, params):
     
   # set up cc loss
   loss = tf.reduce_mean(custom_ccs)
+  # Make sure loss is finite
+  assert_op  = tf.Assert(tf.is_finite(loss), data=[custom_ccs], summarize=100)
+  with tf.control_dependencies([assert_op]):
+    loss = tf.identity(loss)
   
   # set up training
   if mode == tf.estimator.ModeKeys.TRAIN:
