@@ -313,8 +313,8 @@ def main(argv):
       n_epochs=1, args=args) )
     print(valid_results)
     
-    if valid_results['loss'] < smallest_loss:
-      smallest_loss = valid_results['loss']
+    if -valid_results['custom_cc'] < smallest_loss:
+      smallest_loss = -valid_results['custom_cc']
       # delete best_ckpt_dir
       shutil.rmtree(best_ckpt_dir)
       # re-make best_ckpt_dir as empty
