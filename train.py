@@ -44,26 +44,19 @@ def model_fn(features, labels, mode, params):
   }
   predicted_gazemaps = tf.reshape(ps, [-1,]+params['gazemap_size']+[1])
   
-  # set up loss
+  # set up cross-entropy loss first
   loss = tf.losses.softmax_cross_entropy(onehot_labels=labels, logits=logits, weights=weights)
-  
-  # set up training
-  if mode == tf.estimator.ModeKeys.TRAIN:
-    optimizer = tf.train.AdamOptimizer(learning_rate=params['learning_rate'])
-    train_op = optimizer.minimize(loss, tf.train.get_or_create_global_step())
-  else:
-    train_op = None
     
   # set up metrics
   # Calculate correlation coefficient
   s1 = ps - tf.reduce_mean(ps, axis=1, keepdims=True)
   s2 = labels - tf.reduce_mean(labels, axis=1, keepdims=True)
-  custom_cc = tf.reduce_sum(tf.multiply(s1, s2), axis=1)/tf.sqrt(tf.reduce_sum(tf.pow(s1,2), axis=1)*tf.reduce_sum(tf.pow(s2,2), axis=1))
-  custom_cc = weights*custom_cc
+  custom_ccs = tf.reduce_sum(tf.multiply(s1, s2), axis=1)/tf.sqrt(tf.reduce_sum(tf.pow(s1,2), axis=1)*tf.reduce_sum(tf.pow(s2,2), axis=1))
+  custom_ccs = weights*custom_ccs
   # Exclude NaNs.
-  mask = tf.is_finite(custom_cc)
-  custom_cc = tf.boolean_mask(custom_cc, mask)
-  custom_cc = tf.metrics.mean(custom_cc)
+  mask = tf.is_finite(custom_ccs)
+  custom_ccs = tf.boolean_mask(custom_ccs, mask)
+  custom_cc = tf.metrics.mean(custom_ccs)
   
   # Calculate KL-divergence
   _labels = tf.maximum(labels, params['epsilon'])
@@ -75,6 +68,16 @@ def model_fn(features, labels, mode, params):
   metrics = {
     'custom_cc': custom_cc,
     'kl': kl,}
+    
+  # set up cc loss
+  loss = tf.reduce_mean(custom_ccs)
+  
+  # set up training
+  if mode == tf.estimator.ModeKeys.TRAIN:
+    optimizer = tf.train.AdamOptimizer(learning_rate=params['learning_rate'])
+    train_op = optimizer.minimize(loss, tf.train.get_or_create_global_step())
+  else:
+    train_op = None
   
   
   # set up summaries
