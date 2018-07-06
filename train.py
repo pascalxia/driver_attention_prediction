@@ -84,7 +84,7 @@ def model_fn(features, labels, mode, params):
   quick_summaries.append(tf.summary.scalar('loss', loss))
   quick_summary_op = tf.summary.merge(quick_summaries, name='quick_summary')
   quick_summary_hook = tf.train.SummarySaverHook(
-    10,
+    params['quick_summary_period'],
     output_dir=params['model_dir'],
     summary_op=quick_summary_op
   )
@@ -102,7 +102,7 @@ def model_fn(features, labels, mode, params):
   )
   slow_summary_op = tf.summary.merge(slow_summaries, name='slow_summary')
   slow_summary_hook = tf.train.SummarySaverHook(
-    50,
+    params['slow_summary_period'],
     output_dir=params['model_dir'],
     summary_op=slow_summary_op
   )
@@ -275,7 +275,10 @@ def main(argv):
     'model_dir': args.model_dir,
     'weight_data': args.weight_data,
     'epsilon': 1e-12,
-    'learning_rate': args.learning_rate
+    'learning_rate': args.learning_rate,
+    'quick_summary_period': args.quick_summary_period,
+    'slow_summary_period': args.slow_summary_period,
+    
   }
   
   model = tf.estimator.Estimator(
