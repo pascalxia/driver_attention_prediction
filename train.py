@@ -48,14 +48,18 @@ def model_fn(features, labels, mode, params):
   loss = tf.losses.softmax_cross_entropy(onehot_labels=labels, logits=logits, weights=weights)
     
   # set up metrics
+  # Add noise to avoid NaN in cc
+  noise = tf.random_uniform(tf.shape(labels), maxval=4e-6)
+  labels = labels + noise
   # Calculate correlation coefficient
   s1 = ps - tf.reduce_mean(ps, axis=1, keepdims=True)
   s2 = labels - tf.reduce_mean(labels, axis=1, keepdims=True)
   custom_ccs = tf.reduce_sum(tf.multiply(s1, s2), axis=1)/tf.sqrt(tf.reduce_sum(tf.pow(s1,2), axis=1)*tf.reduce_sum(tf.pow(s2,2), axis=1))
+  raw_ccs = custom_ccs
   custom_ccs = weights*custom_ccs
   # Exclude NaNs.
-  mask = tf.is_finite(custom_ccs)
-  custom_ccs = tf.boolean_mask(custom_ccs, mask)
+  #mask = tf.is_finite(custom_ccs)
+  #custom_ccs = tf.boolean_mask(custom_ccs, mask)
   custom_cc = tf.metrics.mean(custom_ccs)
   
   # Calculate KL-divergence
@@ -70,9 +74,9 @@ def model_fn(features, labels, mode, params):
     'kl': kl,}
     
   # set up cc loss
-  loss = tf.reduce_mean(custom_ccs)
+  loss = -tf.reduce_mean(custom_ccs)
   # Make sure loss is finite
-  assert_op  = tf.Assert(tf.is_finite(loss), data=[custom_ccs], summarize=100)
+  assert_op  = tf.Assert(tf.is_finite(loss), data=[custom_ccs, logits, ps, mode, features['video_id'], features['predicted_time_points']], summarize=200)
   with tf.control_dependencies([assert_op]):
     loss = tf.identity(loss)
   
