@@ -65,7 +65,7 @@ def model_fn(features, labels, mode, params):
   custom_cc = tf.reduce_sum(tf.multiply(s1, s2), axis=1)/tf.sqrt(tf.reduce_sum(tf.pow(s1,2), axis=1)*tf.reduce_sum(tf.pow(s2,2), axis=1))
   custom_cc = weights*custom_cc
   # Exclude NaNs.
-  mask = tf.logical_not(tf.is_finite(custom_cc))
+  mask = tf.is_finite(custom_cc)
   custom_cc = tf.boolean_mask(custom_cc, mask)
   custom_cc = tf.metrics.mean(custom_cc)
   
@@ -277,7 +277,8 @@ def main(argv):
     'gazemap_size': args.gazemap_size,
     'feature_map_size': args.feature_map_size,
     'model_dir': args.model_dir,
-    'weight_data': args.weight_data
+    'weight_data': args.weight_data,
+    'epsilon': 1e-12,
   }
   
   model = tf.estimator.Estimator(
