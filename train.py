@@ -16,10 +16,6 @@ import pdb
 
 
 
-LEARNING_RATE = 1e-3
-
-
-
 def model_fn(features, labels, mode, params):
   """The model_fn argument for creating an Estimator."""
   # input
@@ -53,7 +49,7 @@ def model_fn(features, labels, mode, params):
   
   # set up training
   if mode == tf.estimator.ModeKeys.TRAIN:
-    optimizer = tf.train.AdamOptimizer(learning_rate=LEARNING_RATE)
+    optimizer = tf.train.AdamOptimizer(learning_rate=params['learning_rate'])
     train_op = optimizer.minimize(loss, tf.train.get_or_create_global_step())
   else:
     train_op = None
@@ -279,6 +275,7 @@ def main(argv):
     'model_dir': args.model_dir,
     'weight_data': args.weight_data,
     'epsilon': 1e-12,
+    'learning_rate': args.learning_rate
   }
   
   model = tf.estimator.Estimator(
