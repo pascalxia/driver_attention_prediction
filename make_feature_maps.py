@@ -30,36 +30,13 @@ def model_fn(features, labels, mode, params):
     with tf.variable_scope("encoder"):
         feature_net = networks.alex_encoder(params)
         feature_maps = feature_net(input_tensor)
-  
-    #set up readout net----------------------------
-    batch_size_tensor = tf.shape(cameras)[0]
-    n_steps_tensor = tf.shape(cameras)[1]
-    feature_map_size = (int(feature_maps.get_shape()[1]), 
-                        int(feature_maps.get_shape()[2]))
-    n_channel = int(feature_maps.get_shape()[3])
-
-    #with tf.variable_scope("readout"):
-    readout_net = networks.big_conv_lstm_readout_net
-
-    feature_maps = tf.reshape(feature_maps,
-        [batch_size_tensor, n_steps_tensor,
-        feature_map_size[0], feature_map_size[1],
-        n_channel])
-
-    logits = networks.big_conv_lstm_readout_net(feature_maps, 
-                                            feature_map_size=feature_map_size,
-                                            drop_rate=0)
-  
-    # get prediction
-    ps = tf.nn.softmax(logits)
     
     predictions = {
-        'ps': ps
+        'feature_maps': feature_maps
     }
-    predicted_gazemaps = tf.reshape(ps, [-1,]+params['gazemap_size']+[1])
   
     if mode == tf.estimator.ModeKeys.PREDICT:
-        predictions['video_id'] = tf.tile(video_id, tf.shape(ps)[0:1])
+        predictions['video_id'] = tf.tile(video_id, tf.shape(feature_maps)[0:1])
         predictions['predicted_time_points'] = tf.reshape(predicted_time_points, shape=[-1, 1])
         return tf.estimator.EstimatorSpec(mode=mode, predictions=predictions)
 
@@ -67,8 +44,13 @@ def input_fn(dataset, batch_size, n_steps, shuffle, n_epochs, args):
     """Prepare data for training."""
   
     # get and shuffle tfrecords files
-    files = tf.data.Dataset.list_files(os.path.join(args.data_dir, dataset, 'tfrecords',
-        'cameras_*.tfrecords'))
+    
+    if dataset is not None:
+        file_path = os.path.join(args.data_dir, dataset, 'tfrecords', 'cameras_*.tfrecords')
+    else:
+        file_path = os.path.join(args.data_dir, 'tfrecords', 'cameras_*.tfrecords')
+    files = tf.data.Dataset.list_files(file_path)
+    
     if shuffle:
         files = files.shuffle(buffer_size=10)
   
@@ -168,16 +150,18 @@ def main(argv):
             args.model_iteration = ckpt_name.split('-')[1]
     else:
         ckpt_name = 'model.ckpt-'+args.model_iteration
-        ckpt_path = os.path.join(args.model_dir, ckpt_name)
+        ckpt_path = os.path.join(args.model_dir, ckpt_name)    
     
+
+    K.clear_session()
     predict_generator = model.predict(
-        input_fn = lambda: input_fn('inference', 
+        input_fn = lambda: input_fn(None, 
             batch_size=1, n_steps=None, 
             shuffle=False,
             n_epochs=1, args=args),
         checkpoint_path=ckpt_path)
     
-    output_dir = os.path.join(args.model_dir, 'prediction_iter_'+args.model_iteration)
+    output_dir = os.path.join(args.data_dir, 'image_features_'+args.feature_name)
     if not os.path.isdir(output_dir):
         os.makedirs(output_dir)
     
@@ -191,16 +175,11 @@ def main(argv):
             previous_video_id = res['video_id']
             
         output_path = os.path.join(output_dir, 
-            str(res['video_id'])+'_'+str(res['predicted_time_points'][0]).zfill(5)+'.jpg')
-        gazemap = np.reshape(res['ps'], args.gazemap_size)
-        misc.imsave(output_path, gazemap)
+            str(res['video_id'])+'_'+str(res['predicted_time_points'][0]).zfill(5)+'.npy')
+        
+        feature_map = res['feature_maps']
+        np.save(output_path, feature_map)
 
-  
-    
-  
-  
-  
-  
 
 
 
