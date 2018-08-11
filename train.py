@@ -16,10 +16,6 @@ import pdb
 
 
 
-LEARNING_RATE = 1e-3
-
-
-
 def model_fn(features, labels, mode, params):
   """The model_fn argument for creating an Estimator."""
   # input
@@ -30,8 +26,11 @@ def model_fn(features, labels, mode, params):
     weights = features['weights']
     weights = tf.reshape(weights, (-1,))
   else:
-    weights = None
+    weights = 1.0
   labels = tf.reshape(labels, (-1, params['gazemap_size'][0]*params['gazemap_size'][1]))
+  
+  video_id = features['video_id']
+  predicted_time_points = features['predicted_time_points']
   
   # build up model
   logits = networks.big_conv_lstm_readout_net(feature_maps, 
@@ -50,24 +49,42 @@ def model_fn(features, labels, mode, params):
   
   # set up training
   if mode == tf.estimator.ModeKeys.TRAIN:
-    optimizer = tf.train.AdamOptimizer(learning_rate=LEARNING_RATE)
+    optimizer = tf.train.AdamOptimizer(learning_rate=params['learning_rate'])
     train_op = optimizer.minimize(loss, tf.train.get_or_create_global_step())
   else:
     train_op = None
     
   # set up metrics
-  #TODO: write correlation coefficient as a accuracy metric
-  accuracy = tf.contrib.metrics.streaming_pearson_correlation(ps, labels, weights=weights)
-  metrics = {'accuracy': accuracy}
+  # Calculate correlation coefficient
+  s1 = ps - tf.reduce_mean(ps, axis=1, keepdims=True)
+  s2 = labels - tf.reduce_mean(labels, axis=1, keepdims=True)
+  custom_cc = tf.reduce_sum(tf.multiply(s1, s2), axis=1)/tf.sqrt(tf.reduce_sum(tf.pow(s1,2), axis=1)*tf.reduce_sum(tf.pow(s2,2), axis=1))
+  custom_cc = weights*custom_cc
+  # Exclude NaNs.
+  mask = tf.is_finite(custom_cc)
+  custom_cc = tf.boolean_mask(custom_cc, mask)
+  custom_cc = tf.metrics.mean(custom_cc)
+  
+  # Calculate KL-divergence
+  _labels = tf.maximum(labels, params['epsilon'])
+  p_entropies = tf.reduce_sum(-tf.multiply(_labels, tf.log(_labels)), axis=1)
+  kls = loss - p_entropies
+  kls = weights*kls
+  kl = tf.metrics.mean(kls)
+  
+  metrics = {
+    'custom_cc': custom_cc,
+    'kl': kl,}
   
   
   # set up summaries
   quick_summaries = []
-  quick_summaries.append(tf.summary.scalar('accuracy', accuracy[1]))
+  quick_summaries.append(tf.summary.scalar('kl', kl[1]))
+  quick_summaries.append(tf.summary.scalar('custom_cc', custom_cc[1]))
   quick_summaries.append(tf.summary.scalar('loss', loss))
   quick_summary_op = tf.summary.merge(quick_summaries, name='quick_summary')
   quick_summary_hook = tf.train.SummarySaverHook(
-    10,
+    params['quick_summary_period'],
     output_dir=params['model_dir'],
     summary_op=quick_summary_op
   )
@@ -85,7 +102,7 @@ def model_fn(features, labels, mode, params):
   )
   slow_summary_op = tf.summary.merge(slow_summaries, name='slow_summary')
   slow_summary_hook = tf.train.SummarySaverHook(
-    50,
+    params['slow_summary_period'],
     output_dir=params['model_dir'],
     summary_op=slow_summary_op
   )
@@ -108,7 +125,7 @@ def input_fn(dataset, batch_size, n_steps, shuffle, include_labels, n_epochs, ar
   """Prepare data for training."""
   
   # get and shuffle tfrecords files
-  files = tf.data.Dataset.list_files(os.path.join(args.data_dir, dataset, 'tfrecords',
+  files = tf.data.Dataset.list_files(os.path.join(args.data_dir, dataset, 'tfrecords_weighted',
     'cameras_gazes_'+args.feature_name+\
     '_features_%dfuture_*.tfrecords' % args.n_future_steps))
   if shuffle:
@@ -256,7 +273,12 @@ def main(argv):
     'gazemap_size': args.gazemap_size,
     'feature_map_size': args.feature_map_size,
     'model_dir': args.model_dir,
-    'weight_data': args.weight_data
+    'weight_data': args.weight_data,
+    'epsilon': 1e-12,
+    'learning_rate': args.learning_rate,
+    'quick_summary_period': args.quick_summary_period,
+    'slow_summary_period': args.slow_summary_period,
+    
   }
   
   model = tf.estimator.Estimator(
@@ -294,8 +316,8 @@ def main(argv):
       n_epochs=1, args=args) )
     print(valid_results)
     
-    if valid_results['loss'] < smallest_loss:
-      smallest_loss = valid_results['loss']
+    if -valid_results['custom_cc'] < smallest_loss:
+      smallest_loss = -valid_results['custom_cc']
       # delete best_ckpt_dir
       shutil.rmtree(best_ckpt_dir)
       # re-make best_ckpt_dir as empty
