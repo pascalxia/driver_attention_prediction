@@ -15,7 +15,7 @@ import pdb
 
 
 
-
+# Define the model here
 def model_fn(features, labels, mode, params):
   """The model_fn argument for creating an Estimator."""
   # input
@@ -224,8 +224,6 @@ def input_fn(dataset, batch_size, n_steps, shuffle, include_labels, n_epochs, ar
                    'predicted_time_points': [None,],
                    'weights': [None,]}
                    
-  #padded_shapes = {'feature_maps': [None,]+args.feature_map_size+[args.feature_map_channels]}
-                   
   if include_labels:
       padded_shapes = (padded_shapes, [None, args.gazemap_size[0]*args.gazemap_size[1]])
       
@@ -252,19 +250,6 @@ def main(argv):
   add_args.for_lstm(parser)
   args = parser.parse_args()
   
-  '''
-  this_input_fn=lambda: input_fn('training',
-      args.batch_size, args.n_steps, 
-      shuffle=True, include_labels=True, 
-      n_epochs=args.epochs_before_validation, args=args)
-  ds = this_input_fn()
-  iterator = ds.make_one_shot_iterator()
-  next_element = iterator.get_next()
-  sess = tf.Session()
-  pdb.set_trace()
-  res = sess.run(next_element)
-  '''
-  
   config = tf.estimator.RunConfig(save_summary_steps=float('inf'),
                                   log_step_count_steps=10)
                                   
@@ -287,10 +272,6 @@ def main(argv):
     config=config,
     params=params)
   
-  #pdb.set_trace()
-  #predict_generator = model.predict(input_fn = lambda: train_input_fn(args))
-  #res = next(predict_generator)
-  
   # set up the directory to save the best checkpoint
   best_ckpt_dir = os.path.join(args.model_dir, 'best_ckpt')
   if not os.path.isdir(best_ckpt_dir) or len(os.listdir(best_ckpt_dir))==0:
@@ -299,6 +280,7 @@ def main(argv):
       os.makedirs(best_ckpt_dir)
   else:
     smallest_loss = [float(f.split('_')[1]) for f in os.listdir(best_ckpt_dir) if f.startswith('loss_')][0]
+  
   
   for _ in range(args.train_epochs // args.epochs_before_validation):
     # Train the model.
@@ -332,17 +314,6 @@ def main(argv):
           os.path.join(best_ckpt_dir, f))
   
   
-  
-  #model.train(input_fn=lambda: train_input_fn(args))
-
-    
-
-
-
-
-
-
-
 
 
 if __name__ == '__main__':
