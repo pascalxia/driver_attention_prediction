@@ -52,7 +52,7 @@ python write_tfrecords_for_inference.py \
 5. Download the pre-trained weights of Alexnet. Downlaod [bvlc_alexnet.npy](https://www.cs.toronto.edu/~guerzhoy/tf_alexnet/bvlc_alexnet.npy) and put it at `./`
 
 
-6. Predict driver attention maps by runnning the following command. The predicted attention maps will be at `./pretrained_models/prediction_iter_0/`. The files will be named in the pattern "VideoName_TimeInMilliseconds.jpg".
+6. Predict driver attention maps by runnning the following command. The predicted attention maps will be at `./pretrained_models/model_for_inference/prediction_iter_0/`. The files will be named in the pattern "VideoName_TimeInMilliseconds.jpg".
 ```bash
 python infer.py \
 --data_dir=data \
@@ -118,11 +118,11 @@ python write_tfrecords_for_inference.py \
 ```bash
 python make_feature_maps.py \
 --data_dir=data/training \
---model_dir=pretrained_models
+--model_dir=pretrained_models/model_for_inference
 
 python make_feature_maps.py \
 --data_dir=data/validation \
---model_dir=pretrained_models
+--model_dir=pretrained_models/model_for_inference
 ```
 
 
