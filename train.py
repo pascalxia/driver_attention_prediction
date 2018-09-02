@@ -22,11 +22,10 @@ def model_fn(features, labels, mode, params):
   cameras = features['cameras']
   feature_maps = features['feature_maps']
   gazemaps = features['gazemaps']
-  if params['weight_data']:
-    weights = features['weights']
-    weights = tf.reshape(weights, (-1,))
-  else:
-    weights = 1.0
+
+  weights = features['weights']
+  weights = tf.reshape(weights, (-1,))
+
   labels = tf.reshape(labels, (-1, params['gazemap_size'][0]*params['gazemap_size'][1]))
   
   video_id = features['video_id']
@@ -121,7 +120,7 @@ def model_fn(features, labels, mode, params):
 
 
 # Set up training and evaluation input functions.
-def input_fn(dataset, batch_size, n_steps, shuffle, include_labels, n_epochs, args):
+def input_fn(dataset, batch_size, n_steps, shuffle, include_labels, n_epochs, args, weight_data=False):
   """Prepare data for training."""
   
   # get and shuffle tfrecords files
@@ -200,6 +199,9 @@ def input_fn(dataset, batch_size, n_steps, shuffle, include_labels, n_epochs, ar
       back_prop=False
     )
     
+    if not weight_data:
+      weights = 1.0
+      
     
     # return features and labels
     features = {}
@@ -288,14 +290,15 @@ def main(argv):
     model.train(input_fn=lambda: input_fn('training',
       args.batch_size, args.n_steps, 
       shuffle=True, include_labels=True, 
-      n_epochs=args.epochs_before_validation, args=args)
+      n_epochs=args.epochs_before_validation, args=args,
+      weight_data=args.weight_data)
     )
     # validate the model
     K.clear_session()
     valid_results = model.evaluate(input_fn=lambda: input_fn('validation', 
       batch_size=1, n_steps=None, 
       shuffle=False, include_labels=True, 
-      n_epochs=1, args=args) )
+      n_epochs=1, args=args, weight_data=False) )
     print(valid_results)
     
     if -valid_results['custom_cc'] < smallest_loss:
