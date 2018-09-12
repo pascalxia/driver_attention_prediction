@@ -17,11 +17,6 @@ import pdb
 
 
 
-
-LEARNING_RATE = 1e-3
-
-
-
 def model_fn(features, labels, mode, params):
   """The model_fn argument for creating an Estimator."""
   # input
@@ -51,7 +46,7 @@ def model_fn(features, labels, mode, params):
   
 
 
-# Set up training and evaluation input functions.
+# Set up input functions.
 def input_fn(dataset, batch_size, n_steps, shuffle, include_labels, n_epochs, args):
   """Prepare data for training."""
   
@@ -150,8 +145,6 @@ def input_fn(dataset, batch_size, n_steps, shuffle, include_labels, n_epochs, ar
                    'video_id': [],
                    'predicted_time_points': [None,]}
                    
-  #padded_shapes = {'feature_maps': [None,]+args.feature_map_size+[args.feature_map_channels]}
-                   
   if include_labels:
       padded_shapes = (padded_shapes, [None, args.gazemap_size[0]*args.gazemap_size[1]])
       
@@ -178,19 +171,6 @@ def main(argv):
   add_args.for_lstm(parser)
   args = parser.parse_args()
   
-  '''
-  this_input_fn=lambda: input_fn('training',
-      args.batch_size, args.n_steps, 
-      shuffle=True, include_labels=True, 
-      n_epochs=args.epochs_before_validation, args=args)
-  ds = this_input_fn()
-  iterator = ds.make_one_shot_iterator()
-  next_element = iterator.get_next()
-  sess = tf.Session()
-  pdb.set_trace()
-  res = sess.run(next_element)
-  '''
-  
   config = tf.estimator.RunConfig(save_summary_steps=float('inf'),
                                   log_step_count_steps=10)
                                   
@@ -207,7 +187,6 @@ def main(argv):
     config=config,
     params=params)
   
-  #pdb.set_trace()
   #determine which checkpoint to restore
   if args.model_iteration is None:
     best_ckpt_dir = os.path.join(args.model_dir, 'best_ckpt')
@@ -231,14 +210,10 @@ def main(argv):
   if not os.path.isdir(output_dir):
     os.makedirs(output_dir)
   for res in predict_generator:
-    #pdb.set_trace()
-    
     output_path = os.path.join(output_dir, 
       str(res['video_id'])+'_'+str(res['predicted_time_points'][0]).zfill(5)+'.jpg')
     gazemap = np.reshape(res['ps'], args.gazemap_size)
     misc.imsave(output_path, gazemap)
-    #print('test')
-  
 
 
 
