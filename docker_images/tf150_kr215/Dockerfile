@@ -1,4 +1,4 @@
-FROM gcr.io/tensorflow/tensorflow:1.5.0-gpu-py3
+FROM tensorflow/tensorflow:1.5.0-gpu-py3
 
 RUN apt-get update && apt-get install -y \
     ffmpeg \

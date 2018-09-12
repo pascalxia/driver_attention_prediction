@@ -469,7 +469,6 @@ def thick_conv_lstm_readout_net(feature_map_in_seqs, feature_map_size, drop_rate
     x = layers.Conv2D(32, (1, 1), activation='relu', name='readout_conv2')(x)
     x = layers.core.Dropout(drop_rate)(x)
     x = layers.Conv2D(8, (1, 1), activation='relu', name='readout_conv3')(x)
-    #x = layers.core.Dropout(drop_rate)(x)
     
     # reshape into temporal sequence
     temp_shape = x.get_shape()[1:4]
