@@ -33,7 +33,7 @@ def model_fn(features, labels, mode, params):
   predicted_time_points = features['predicted_time_points']
   
   # build up model
-  logits = networks.big_conv_lstm_readout_net(feature_maps, 
+  logits = networks.thick_conv_lstm_readout_net(feature_maps, 
                                               feature_map_size=params['feature_map_size'], 
                                               drop_rate=0.2)
   
