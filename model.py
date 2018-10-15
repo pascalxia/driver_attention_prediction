@@ -1,5 +1,6 @@
 import tensorflow as tf 
 import networks
+import numpy as np
 
 
 def model_fn(features, labels, mode, params):
@@ -30,7 +31,7 @@ def model_fn(features, labels, mode, params):
   predicted_gazemaps = tf.reshape(ps, [-1,]+params['gazemap_size']+[1])
   
   # set up loss
-  loss = tf.losses.softmax_cross_entropy(onehot_labels=labels, logits=logits, weights=weights)
+  loss = tf.losses.softmax_cross_entropy(onehot_labels=labels, logits=logits)
   
   # set up training
   if mode == tf.estimator.ModeKeys.TRAIN:
@@ -44,7 +45,7 @@ def model_fn(features, labels, mode, params):
   s1 = ps - tf.reduce_mean(ps, axis=1, keepdims=True)
   s2 = labels - tf.reduce_mean(labels, axis=1, keepdims=True)
   custom_cc = tf.reduce_sum(tf.multiply(s1, s2), axis=1)/tf.sqrt(tf.reduce_sum(tf.pow(s1,2), axis=1)*tf.reduce_sum(tf.pow(s2,2), axis=1))
-  custom_cc = weights*custom_cc
+  #custom_cc = weights*custom_cc
   # Exclude NaNs.
   mask = tf.is_finite(custom_cc)
   custom_cc = tf.boolean_mask(custom_cc, mask)
@@ -54,18 +55,28 @@ def model_fn(features, labels, mode, params):
   _labels = tf.maximum(labels, params['epsilon'])
   p_entropies = tf.reduce_sum(-tf.multiply(_labels, tf.log(_labels)), axis=1)
   kls = loss - p_entropies
-  kls = weights*kls
+  #kls = weights*kls
   kl = tf.metrics.mean(kls)
+    
+  # Calculate spreadness
+  grid_x, grid_y = np.meshgrid(np.arange(params['gazemap_size'][1]), 
+                               np.arange(params['gazemap_size'][0]))
+  dist_matrix = np.sqrt(np.square(grid_x-params['gazemap_size'][1]/2) + \
+                        np.square(grid_y-params['gazemap_size'][0]/2))
+  spread = tf.multiply(ps, np.reshape(dist_matrix, (-1,)))
+  spread = tf.reduce_sum(spread, axis=-1)
+  spread = tf.metrics.mean(spread)
   
   metrics = {
     'custom_cc': custom_cc,
-    'kl': kl,}
-  
+    'kl': kl,
+    'spread': spread,}
   
   # set up summaries
   quick_summaries = []
   quick_summaries.append(tf.summary.scalar('kl', kl[1]))
   quick_summaries.append(tf.summary.scalar('custom_cc', custom_cc[1]))
+  quick_summaries.append(tf.summary.scalar('spread', spread[1]))
   quick_summaries.append(tf.summary.scalar('loss', loss))
   quick_summaries.append(tf.summary.scalar('mean_weight', tf.reduce_mean(weights)))
   quick_summary_op = tf.summary.merge(quick_summaries, name='quick_summary')
