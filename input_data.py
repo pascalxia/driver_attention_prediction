@@ -82,7 +82,6 @@ def input_fn(dataset, batch_size, n_steps, shuffle, include_labels, n_epochs, ar
       'video_id': tf.FixedLenFeature(shape=[], dtype=tf.int64)
     }
     sequence_feature_info = {
-      'feature_maps': tf.FixedLenSequenceFeature(shape=[], dtype=tf.string),
       'gaze_ps': tf.FixedLenSequenceFeature(shape=[], dtype=tf.string),
       'predicted_time_points': tf.FixedLenSequenceFeature(shape=[], dtype=tf.int64),
       'weights': tf.FixedLenSequenceFeature(shape=[], dtype=tf.float32)
@@ -95,8 +94,6 @@ def input_fn(dataset, batch_size, n_steps, shuffle, include_labels, n_epochs, ar
     gazemaps = tf.sparse_tensor_to_dense(context_features["gazemaps"], default_value='')
     video_id = context_features['video_id']
     
-    feature_maps = tf.reshape(tf.decode_raw(sequence_features["feature_maps"], tf.float32), 
-      [-1,]+args.feature_map_size+[args.feature_map_channels])
     predicted_time_points = sequence_features["predicted_time_points"]
     weights = sequence_features['weights']
     
@@ -128,7 +125,6 @@ def input_fn(dataset, batch_size, n_steps, shuffle, include_labels, n_epochs, ar
           
       end = tf.minimum(offset+n_steps, length)
       cameras = cameras[offset:end]
-      feature_maps = feature_maps[offset:end]
       gazemaps = gazemaps[offset:end]
       predicted_time_points = predicted_time_points[offset:end]
       weights = weights[offset:end]
@@ -158,7 +154,6 @@ def input_fn(dataset, batch_size, n_steps, shuffle, include_labels, n_epochs, ar
     # return features and labels
     features = {}
     features['cameras'] = cameras
-    features['feature_maps'] = feature_maps
     features['gazemaps'] = gazemaps
     features['video_id'] = video_id
     features['predicted_time_points'] = predicted_time_points
@@ -172,7 +167,6 @@ def input_fn(dataset, batch_size, n_steps, shuffle, include_labels, n_epochs, ar
   dataset = dataset.map(_parse_function, num_parallel_calls=10)
   
   padded_shapes = {'cameras': [None,]+args.image_size+[3],
-                   'feature_maps': [None,]+args.feature_map_size+[args.feature_map_channels],
                    'gazemaps': [None,]+args.image_size+[1],
                    'video_id': [],
                    'predicted_time_points': [None,],

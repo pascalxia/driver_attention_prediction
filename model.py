@@ -7,8 +7,12 @@ def model_fn(features, labels, mode, params):
   """The model_fn argument for creating an Estimator."""
   # input
   cameras = features['cameras']
-  feature_maps = features['feature_maps']
+  camera_input = tf.cast(cameras, tf.float32)
+  camera_input = tf.reshape(camera_input, 
+                            [-1, params['image_size'][0], params['image_size'][1], 3])
+  camera_input = camera_input - [123.68, 116.79, 103.939]
   gazemaps = features['gazemaps']
+  
 
   weights = features['weights']
   weights = tf.reshape(weights, (-1,))
@@ -19,9 +23,22 @@ def model_fn(features, labels, mode, params):
   predicted_time_points = features['predicted_time_points']
   
   # build up model
-  logits = networks.thick_conv_lstm_readout_net(feature_maps, 
-                                              feature_map_size=params['feature_map_size'], 
-                                              drop_rate=0.2)
+  with tf.variable_scope("encoder"):
+    readout_network = networks.alex_encoder(params)
+    feature_maps = readout_network(camera_input)
+    batch_size_tensor = tf.shape(cameras)[0]
+    n_steps_tensor = tf.shape(cameras)[1]
+    feature_map_size = (int(feature_maps.get_shape()[1]), 
+                        int(feature_maps.get_shape()[2]))
+    n_channel = int(feature_maps.get_shape()[3])
+    feature_map_in_seqs = tf.reshape(feature_maps,
+                                     [batch_size_tensor, n_steps_tensor,
+                                      feature_map_size[0], feature_map_size[1],
+                                      n_channel])
+  with tf.variable_scope("readout"):
+    logits = networks.thick_conv_lstm_readout_net(feature_map_in_seqs, 
+                                                  feature_map_size=params['feature_map_size'], 
+                                                  drop_rate=0.2)
   
   # get prediction
   ps = tf.nn.softmax(logits)
@@ -36,7 +53,10 @@ def model_fn(features, labels, mode, params):
   # set up training
   if mode == tf.estimator.ModeKeys.TRAIN:
     optimizer = tf.train.AdamOptimizer(learning_rate=params['learning_rate'])
-    train_op = optimizer.minimize(loss, tf.train.get_or_create_global_step())
+    variables_to_train = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 
+                                           scope='readout')
+    train_op = optimizer.minimize(loss, tf.train.get_or_create_global_step(),
+                                  var_list=variables_to_train)
   else:
     train_op = None
     
