@@ -110,21 +110,20 @@ def input_fn(dataset, batch_size, n_steps, shuffle, include_labels, n_epochs, ar
       """
       sample the starting point (offset) according to the sampling weights of windows
       """
-      cum_weights = tf.cumsum(weights, axis=0)
-      sample_prob = cum_weights[n_steps-1:] - tf.concat([[0,], cum_weights[:-n_steps]], axis=0)
-      sample_prob = sample_prob / tf.reduce_sum(sample_prob)
-      offset = tf.multinomial(logits=tf.log([sample_prob,]), num_samples=1, output_dtype=tf.int32)[0, 0]
+      if weight_data:
+        cum_weights = tf.cumsum(weights, axis=0)
+        sample_prob = cum_weights[n_steps-1:] - tf.concat([[0,], cum_weights[:-n_steps]], axis=0)
+        sample_prob = sample_prob / tf.reduce_sum(sample_prob)
+        offset = tf.multinomial(logits=tf.log([sample_prob,]), num_samples=1, output_dtype=tf.int32)[0, 0]
+      else:
+        offset = tf.random_uniform(shape=[], minval=0, 
+                                   maxval=tf.maximum(length-n_steps+1, 1), dtype=tf.int32)
       return offset
     
     if n_steps is not None:
       #select a subsequence
       length = tf.shape(cameras)[0]
-      if weight_data:
-        offset = tf.cond(tf.less(length, n_steps), lambda: 0, sample_offset)
-      else:
-        offset = tf.random_uniform(shape=[], minval=0, 
-                                   maxval=tf.maximum(length-n_steps+2, 1), dtype=tf.int32)
-  
+      offset = tf.cond(tf.less(length, n_steps), lambda: 0, sample_offset)
           
       end = tf.minimum(offset+n_steps, length)
       cameras = cameras[offset:end]
