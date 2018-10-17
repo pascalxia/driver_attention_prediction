@@ -25,12 +25,10 @@ parser = argparse.ArgumentParser()
 add_args.for_general(parser)
 add_args.for_lstm(parser)
 parser.add_argument('--n_divides', type=int, default=1)
-parser.add_argument('--feature_name', type=str, default='alexnet')
 args = parser.parse_args()
 
 
 camera_folder = os.path.join(args.data_dir, 'camera_images')
-feature_folder = os.path.join(args.data_dir, 'image_features_'+args.feature_name)
 gazemap_folder = os.path.join(args.data_dir, 'gazemap_images')
 tfrecord_folder = os.path.join(args.data_dir, 'tfrecords')
 
@@ -39,8 +37,6 @@ if not os.path.isdir(tfrecord_folder):
 
 data_point_names = dpc.get_data_point_names(args.data_dir, in_sequences=True,
     longest_seq=args.longest_seq)
-##################### DEBUG ######################
-#data_point_names = data_point_names[:20]
 
 random.shuffle(data_point_names)
 splits = [[] for _ in range(args.n_divides)]
@@ -57,13 +53,12 @@ if args.weight_data:
 for i in range(len(splits)):
     with tf.python_io.TFRecordWriter(
         os.path.join(tfrecord_folder, 
-        "cameras_gazes_%s_features_%dfuture_%d.tfrecords" \
-          % (args.feature_name, args.n_future_steps, i) )) as writer:
+        "cameras_gazes_%dfuture_%d.tfrecords" \
+          % (args.n_future_steps, i) )) as writer:
         
         
         for seq in tqdm(splits[i]):
             camera_features = list()
-            feature_map_features = list()
             gazemap_features = list()
             gaze_ps_features = list()
             video_id = int(seq[0].split('_')[0])
@@ -77,18 +72,9 @@ for i in range(len(splits)):
                   camera, 
                   tuple(args.image_size[::-1]),
                   interpolation=cv2.INTER_LINEAR
-                ) # please check if this is the desired size
+                )
                 camera = cv2.imencode('.jpg', camera)[1].tostring()                     # imencode returns tuple(bool, ndarray)
                 camera_features.append(camera)
-                
-                # write image feature maps
-                try:
-                  feature_map = np.load(os.path.join(feature_folder, seq[j]+'.npy'))
-                except FileNotFoundError:
-                  print('No feature map for %s' % seq[j])
-                  camera_features.pop()
-                  continue
-                feature_map_features.append(_bytes_feature(feature_map.tostring()))
                 
                 # write gaze probability distribution
                 try:
@@ -134,8 +120,7 @@ for i in range(len(splits)):
                     weight = float(1)
                 weight_features.append(tf.train.Feature(float_list=tf.train.FloatList(value=[weight])))
             
-            feature_lists = {'feature_maps': tf.train.FeatureList(feature=feature_map_features),
-                             'gaze_ps': tf.train.FeatureList(feature=gaze_ps_features),
+            feature_lists = {'gaze_ps': tf.train.FeatureList(feature=gaze_ps_features),
                              'predicted_time_points': \
                                tf.train.FeatureList(feature=predicted_time_point_features),
                              'weights': tf.train.FeatureList(feature=weight_features)}
