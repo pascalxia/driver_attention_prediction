@@ -10,6 +10,14 @@ def add_args(args, parser):
                             type=d['type'],
                             help=d['help'],
                             required=d['required'])
+                            
+def str2bool(v):
+    if v.lower() in ('yes', 'true', 't', 'y', '1'):
+        return True
+    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+        return False
+    else:
+        raise argparse.ArgumentTypeError('Boolean value expected.')
 
 
 def for_general(parser):
@@ -39,7 +47,7 @@ def for_general(parser):
     {
      'name': 'weight_data',
      'default': False,
-     'type': bool,
+     'type': str2bool,
      'help': 'whether to weight the data points differently in trianing'}
     ]
     add_args(args, parser)
@@ -55,7 +63,7 @@ def for_inference(parser):
     {
      'name': 'use_prior',
      'default': False,
-     'type': bool,
+     'type': str2bool,
      'help': 'whether to use prior gaze map'},
     {
      'name': 'drop_rate',
@@ -80,7 +88,7 @@ def for_inference(parser):
      {
      'name': 'binary',
      'default': False,
-     'type': bool,
+     'type': str2bool,
      'help': 'Whether to make the gaze maps to binary maps'},
      {
      'name': 'annotation_threshold',
