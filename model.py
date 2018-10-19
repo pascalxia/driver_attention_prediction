@@ -36,9 +36,15 @@ def model_fn(features, labels, mode, params):
                                       feature_map_size[0], feature_map_size[1],
                                       n_channel])
   with tf.variable_scope("readout"):
-    logits = networks.thick_conv_lstm_readout_net(feature_map_in_seqs, 
-                                                  feature_map_size=params['feature_map_size'], 
-                                                  drop_rate=0.2)
+    if params['readout'] == 'default':
+      readout_net = networks.big_conv_lstm_readout_net
+    elif params['readout'] == 'big_conv_lstm':
+      readout_net = networks.big_conv_lstm_readout_net
+    elif params['readout'] == 'thick_conv_lstm':
+      readout_net = networks.thick_conv_lstm_readout_net
+    logits = readout_net(feature_maps, 
+                         feature_map_size=params['feature_map_size'], 
+                         drop_rate=0.2)
   
   # get prediction
   ps = tf.nn.softmax(logits)
