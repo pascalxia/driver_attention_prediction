@@ -11,7 +11,7 @@ import matplotlib
 matplotlib.use('Agg')
 
 import numpy as np
-import data_point_collector
+import data_point_collector as dpc
 import BatchDatasetReader
 import scipy.misc as misc
 import pdb
@@ -36,8 +36,8 @@ ut.parse_for_general(args)
 #set parameters-------------------
 gaze_map_size = (72, 128)
 
-prediction_dir = args.model_dir+'prediction_iter_'+args.model_iteration+'/'
-movie_dir = args.model_dir+'visualization_prediction_iter_'+args.model_iteration+'/'
+prediction_dir = os.path.join(args.model_dir, 'prediction_iter_'+args.model_iteration)
+movie_dir = os.path.join(args.model_dir, 'visualization_prediction_iter_'+args.model_iteration)
 if not os.path.isdir(movie_dir):
     os.makedirs(movie_dir)
     
@@ -50,14 +50,12 @@ else:
     
 
 #set up data reader------------------
-_, _, valid_data_points = \
-    data_point_collector.read_datasets(args.data_dir, in_sequences=True, keep_prediction_rate=False)
+data_points = dpc.get_data_point_names(args.data_dir, in_sequences=True, keep_prediction_rate=False)
 if video_list is not None:
-    valid_data_points = data_point_collector.\
-        keep_only_videos(valid_data_points, video_list)
+    data_points = dpc.keep_only_videos(data_points, video_list)
 validation_dataset_reader = \
-    BatchDatasetReader.BatchDataset(args.data_dir+'application/',
-                         valid_data_points, 
+    BatchDatasetReader.BatchDataset(args.data_dir,
+                         data_points, 
                          args.image_size)
 
 batch_size = len(validation_dataset_reader.data_point_names)
@@ -116,7 +114,7 @@ for batch in batches:
     valid_images = validation_dataset_reader.get_images(batch)
     
     try:
-        prediction_maps = [misc.imread(prediction_dir + data_point + '.jpg') for data_point in batch]
+        prediction_maps = [misc.imread(os.path.join(prediction_dir, data_point + '.jpg')) for data_point in batch]
     except FileNotFoundError:
         print('Did not find prediction map')
         continue
@@ -133,6 +131,6 @@ for batch in batches:
     movie = prediction_movie
     movie_name = batch[0].split('_')[0] + '.mp4'
     
-    movie.write_videofile(movie_dir + movie_name)
+    movie.write_videofile(os.path.join(movie_dir, movie_name))
 
 
