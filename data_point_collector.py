@@ -127,9 +127,10 @@ def seperate_long_seqs(data_point_names, size_threshold):
         for i in range(n_parts):
             new_data_point_names.append(
                 seq[i*size_threshold : (i+1)*size_threshold])
-        new_data_point_names.append(
-            seq[n_parts*size_threshold : length]
-        )
+        if length % size_threshold != 0:
+            new_data_point_names.append(
+                seq[n_parts*size_threshold : length]
+            )
     return new_data_point_names
         
 def keep_only_videos(data_point_names_in_sequences, video_list):
