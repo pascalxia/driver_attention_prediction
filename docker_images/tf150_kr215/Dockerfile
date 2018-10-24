@@ -12,4 +12,5 @@ RUN pip3 install \
     moviepy \
     opencv-python==3.2.0.8 \
     pandas \
+    requests \
     tqdm
