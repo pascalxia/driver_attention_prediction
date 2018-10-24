@@ -55,7 +55,7 @@ def main(argv):
     
     predict_generator = model.predict(
         input_fn = lambda: input_fn('inference', 
-            batch_size=1, n_steps=150, 
+            batch_size=1, n_steps=None, 
             include_labels=False,
             shuffle=False,
             n_epochs=1, args=args),
