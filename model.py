@@ -11,14 +11,8 @@ def model_fn(features, labels, mode, params):
   camera_input = tf.reshape(camera_input, 
                             [-1, params['image_size'][0], params['image_size'][1], 3])
   camera_input = camera_input - [123.68, 116.79, 103.939]
-  gazemaps = features['gazemaps']
-  
-
   weights = features['weights']
   weights = tf.reshape(weights, (-1,))
-
-  labels = tf.reshape(labels, (-1, params['gazemap_size'][0]*params['gazemap_size'][1]))
-  
   video_id = features['video_id']
   predicted_time_points = features['predicted_time_points']
   
@@ -42,8 +36,8 @@ def model_fn(features, labels, mode, params):
       readout_net = networks.big_conv_lstm_readout_net
     elif params['readout'] == 'thick_conv_lstm':
       readout_net = networks.thick_conv_lstm_readout_net
-    logits = readout_net(feature_maps, 
-                         feature_map_size=params['feature_map_size'], 
+    logits = readout_net(feature_map_in_seqs, 
+                         feature_map_size=feature_map_size, 
                          drop_rate=0.2)
   
   # get prediction
@@ -53,7 +47,15 @@ def model_fn(features, labels, mode, params):
   }
   predicted_gazemaps = tf.reshape(ps, [-1,]+params['gazemap_size']+[1])
   
+  
+  if mode == tf.estimator.ModeKeys.PREDICT:
+    predictions['video_id'] = tf.tile(video_id, tf.shape(ps)[0:1])
+    predictions['predicted_time_points'] = tf.reshape(predicted_time_points, shape=[-1, 1])
+    return tf.estimator.EstimatorSpec(mode=mode, predictions=predictions)
+  
+  
   # set up loss
+  labels = tf.reshape(labels, (-1, params['gazemap_size'][0]*params['gazemap_size'][1]))
   loss = tf.losses.softmax_cross_entropy(onehot_labels=labels, logits=logits)
   
   # set up training
@@ -99,6 +101,7 @@ def model_fn(features, labels, mode, params):
     'spread': spread,}
   
   # set up summaries
+  gazemaps = features['gazemaps']
   quick_summaries = []
   quick_summaries.append(tf.summary.scalar('kl', kl[1]))
   quick_summaries.append(tf.summary.scalar('custom_cc', custom_cc[1]))
