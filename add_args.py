@@ -48,7 +48,17 @@ def for_general(parser):
      'name': 'weight_data',
      'default': False,
      'type': str2bool,
-     'help': 'whether to weight the data points differently in trianing'}
+     'help': 'whether to weight the data points differently in trianing'},
+    {
+     'name': 'prediction_rate',
+     'default': 3,
+     'type': int,
+     'help': 'at which rate the model predicts'},
+     {
+     'name': 'sample_rate',
+     'default': 3,
+     'type': int,
+     'help': 'at which rate the input images are sampled'},
     ]
     add_args(args, parser)
 

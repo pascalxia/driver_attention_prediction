@@ -36,7 +36,9 @@ if not os.path.isdir(tfrecord_folder):
     os.makedirs(tfrecord_folder)
 
 data_point_names = dpc.get_data_point_names(args.data_dir, in_sequences=True,
-    longest_seq=args.longest_seq)
+    longest_seq=args.longest_seq,
+    predictionRate=args.prediction_rate,
+    sampleRate=args.sample_rate)
 
 random.shuffle(data_point_names)
 splits = [[] for _ in range(args.n_divides)]

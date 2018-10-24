@@ -59,8 +59,8 @@ def get_data_point_names(directory, in_sequences=False, keep_prediction_rate=Tru
     # If a different sample rate is desired, we will sample more frames
     # than needed, split them into groups of 3 frames per second,
     # and train multiple times. (See group_num below)
-    if sampleRate % 3 == 0:
-        numGroups = sampleRate / 3
+    if sampleRate % predictionRate == 0:
+        numGroups = sampleRate / predictionRate
     else:
         numGroups = sampleRate
 
@@ -71,9 +71,6 @@ def get_data_point_names(directory, in_sequences=False, keep_prediction_rate=Tru
             video_id = data_point.split('_')[0]
             group = group_by_video.setdefault(video_id, [])
             group.append(data_point)
-            
-        group_by_video = list(group_by_video.values())
-        
         
         if keep_prediction_rate:
             # Assign each frame a group number indicating which set it will be
@@ -82,10 +79,8 @@ def get_data_point_names(directory, in_sequences=False, keep_prediction_rate=Tru
             # to get data for each frame.
             data_point_dict = {}
             group_num = 0
-          
-            for video in group_by_video:
-                video_id = video[0].split('_')[0]
-                for data_point in video:
+            for video_id, data_points in group_by_video.items():
+                for data_point in data_points:
                     group_key = video_id + '_' + str(int(group_num))
                     group_num = (group_num + 1) % numGroups
 
@@ -103,7 +98,7 @@ def get_data_point_names(directory, in_sequences=False, keep_prediction_rate=Tru
         #avoid sequences that are too long to avoid memory error
         size_threshold = longest_seq
         data_point_names = seperate_long_seqs(data_point_names, size_threshold)
-
+    
     no_of_videos = len(data_point_names)
     print ('No. of %s videos: %d' % (directory, no_of_videos))
 
@@ -137,4 +132,11 @@ def seperate_long_seqs(data_point_names, size_threshold):
         )
     return new_data_point_names
         
-        
+def keep_only_videos(data_point_names_in_sequences, video_list):
+    filtered = []
+    for seq in data_point_names_in_sequences:
+        for target in video_list:
+            if seq[0].split('_')[0] == target:
+                filtered.append(seq)
+                break
+    return filtered
