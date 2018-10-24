@@ -81,7 +81,7 @@ def input_fn(dataset, batch_size, n_steps, shuffle, include_labels, n_epochs, ar
     # specify feature information
     context_feature_info = {
       'cameras': tf.VarLenFeature(dtype=tf.string),
-      'video_id': tf.FixedLenFeature(shape=[], dtype=tf.int64)
+      'video_id': tf.VarLenFeature(dtype=tf.string)
     }
     sequence_feature_info = {
       'predicted_time_points': tf.FixedLenSequenceFeature(shape=[], dtype=tf.int64),
@@ -98,7 +98,7 @@ def input_fn(dataset, batch_size, n_steps, shuffle, include_labels, n_epochs, ar
     
     # collect parsed data
     cameras = tf.sparse_tensor_to_dense(context_features["cameras"], default_value='')
-    video_id = context_features['video_id']
+    video_id = tf.sparse_tensor_to_dense(context_features["video_id"], default_value='')
     predicted_time_points = sequence_features["predicted_time_points"]
     weights = sequence_features['weights']
     if include_labels:
@@ -157,7 +157,7 @@ def input_fn(dataset, batch_size, n_steps, shuffle, include_labels, n_epochs, ar
     # return features and labels
     features = {}
     features['cameras'] = cameras
-    features['video_id'] = video_id
+    features['video_id'] = video_id[0]
     features['predicted_time_points'] = predicted_time_points
     features['weights'] = weights
     

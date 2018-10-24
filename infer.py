@@ -66,6 +66,7 @@ def main(argv):
     
     previous_video_id = None
     for res in predict_generator:
+        res['video_id'] = res['video_id'].decode("utf-8")
         if previous_video_id is None:
             print('Start inference for video: %s' % res['video_id'])
             previous_video_id = res['video_id']
@@ -74,7 +75,7 @@ def main(argv):
             previous_video_id = res['video_id']
             
         output_path = os.path.join(output_dir, 
-            str(res['video_id'])+'_'+str(res['predicted_time_points'][0]).zfill(5)+'.jpg')
+            res['video_id']+'_'+str(res['predicted_time_points'][0]).zfill(5)+'.jpg')
         gazemap = np.reshape(res['ps'], args.gazemap_size)
         misc.imsave(output_path, gazemap)
 
