@@ -9,8 +9,10 @@ RUN cd keras && git checkout 6750e1e51fb106d6595f212bd7a1fd1e95e0e91e && python 
     
 RUN pip3 install \
     feather-format \
+    h5py \
     moviepy \
     opencv-python==3.2.0.8 \
     pandas \
     requests \
+    scikit-image \
     tqdm
