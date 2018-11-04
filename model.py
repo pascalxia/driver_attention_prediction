@@ -8,12 +8,12 @@ def model_fn(features, labels, mode, params):
   # input
   cameras = features['cameras']
   feature_maps = features['feature_maps']
-  gazemaps = features['gazemaps']
+  
 
   weights = features['weights']
   weights = tf.reshape(weights, (-1,))
 
-  labels = tf.reshape(labels, (-1, params['gazemap_size'][0]*params['gazemap_size'][1]))
+  
   
   video_id = features['video_id']
   predicted_time_points = features['predicted_time_points']
@@ -36,7 +36,13 @@ def model_fn(features, labels, mode, params):
   }
   predicted_gazemaps = tf.reshape(ps, [-1,]+params['gazemap_size']+[1])
   
+  if mode == tf.estimator.ModeKeys.PREDICT:
+    predictions['video_id'] = tf.tile(video_id, tf.shape(ps)[0:1])
+    predictions['predicted_time_points'] = tf.reshape(predicted_time_points, shape=[-1, 1])
+    return tf.estimator.EstimatorSpec(mode=mode, predictions=predictions)
+  
   # set up loss
+  labels = tf.reshape(labels, (-1, params['gazemap_size'][0]*params['gazemap_size'][1]))
   loss = tf.losses.softmax_cross_entropy(onehot_labels=labels, logits=logits)
   
   # set up training
@@ -79,6 +85,7 @@ def model_fn(features, labels, mode, params):
     'spread': spread,}
   
   # set up summaries
+  gazemaps = features['gazemaps']
   quick_summaries = []
   quick_summaries.append(tf.summary.scalar('kl', kl[1]))
   quick_summaries.append(tf.summary.scalar('custom_cc', custom_cc[1]))
