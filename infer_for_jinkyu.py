@@ -72,14 +72,16 @@ def main(argv):
         if previous_video_id is None:
             print('Start inference for video: %s' % res['video_id'])
             previous_video_id = res['video_id']
+            timestamp = str(res['predicted_time_points'][0]).zfill(5)
         elif res['video_id'] != previous_video_id:
-            output_path = os.path.join(output_dir, str(previous_video_id)+'.h5')
+            output_path = os.path.join(output_dir, str(previous_video_id)+'_'+timestamp+'.h5')
             cam = h5py.File( output_path, "w" )
             gazemaps = np.array(gazemaps)
             dset = cam.create_dataset( "/gazemap", data=gazemaps, chunks=gazemaps.shape)
           
             print('Start inference for video: %s' % res['video_id'])
             previous_video_id = res['video_id']
+            timestamp = str(res['predicted_time_points'][0]).zfill(5)
             gazemaps = []
             
         output_path = os.path.join(output_dir, 
