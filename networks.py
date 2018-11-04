@@ -456,7 +456,7 @@ def big_conv_lstm_readout_net(feature_map_in_seqs, feature_map_size, drop_rate, 
         return logits, pre_prior_logits
 
 
-def thick_conv_lstm_readout_net(feature_map_in_seqs, feature_map_size, drop_rate, gaze_prior=None):
+def thick_conv_lstm_readout_net(feature_map_in_seqs, feature_map_size, drop_rate, gaze_prior=None, output_embedding=False):
     batch_size = tf.shape(feature_map_in_seqs)[0]
     n_step = tf.shape(feature_map_in_seqs)[1]
     n_channel = int(feature_map_in_seqs.get_shape()[4])
@@ -488,12 +488,15 @@ def thick_conv_lstm_readout_net(feature_map_in_seqs, feature_map_size, drop_rate
                                   recurrent_dropout=drop_rate,
                                   return_sequences=True)
     x = conv_lstm([x, initial_c, initial_h])
+    embed = tf.reshape(x, [batch_size*n_step, 
+                       feature_map_size[0], feature_map_size[1], -1])
     
     x = wps.TimeDistributed(layers.Conv2D(1, (1, 1), activation='linear'))(x)
     
     x = tf.reshape(x, [batch_size*n_step, 
                        feature_map_size[0], feature_map_size[1], 1])
-        
+    raw_logits = tf.reshape(x, [-1, feature_map_size[0]*feature_map_size[1]])
+    
     x = GaussianSmooth(kernel_size = GAUSSIAN_KERNEL_SIZE, name='gaussian_smooth')(x)
     
     logits = tf.reshape(x, [-1, feature_map_size[0]*feature_map_size[1]])
@@ -512,6 +515,9 @@ def thick_conv_lstm_readout_net(feature_map_in_seqs, feature_map_size, drop_rate
         log_prior_tensor = tf.reshape(log_prior_tensor, 
                                       [-1, feature_map_size[0]*feature_map_size[1]])
         logits = tf.add(pre_prior_logits, log_prior_tensor)
+    
+    if output_embedding:
+        return logits, embed, raw_logits
     
     if gaze_prior is None:
         return logits

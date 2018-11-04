@@ -25,15 +25,26 @@ def model_fn(features, labels, mode, params):
     readout_net = networks.big_conv_lstm_readout_net
   elif params['readout'] == 'thick_conv_lstm':
     readout_net = networks.thick_conv_lstm_readout_net
-  logits = readout_net(feature_maps, 
-                       feature_map_size=params['feature_map_size'], 
-                       drop_rate=0.2)
+  
+  if params['output_embedding']:
+    lgoits, embed, raw_logits = readout_net(feature_maps, 
+                                            feature_map_size=params['feature_map_size'], 
+                                            drop_rate=0.2,
+                                            output_embedding=True)
+  else:
+    logits = readout_net(feature_maps, 
+                         feature_map_size=params['feature_map_size'], 
+                         drop_rate=0.2)
   
   # get prediction
   ps = tf.nn.softmax(logits)
   predictions = {
       'ps': ps
   }
+  if params['output_embedding']:
+    predictions['embed'] = embed
+    predictions['raw_logits'] = raw_logits
+    predictions['raw_ps'] = tf.nn.softmax(raw_logits)
   predicted_gazemaps = tf.reshape(ps, [-1,]+params['gazemap_size']+[1])
   
   if mode == tf.estimator.ModeKeys.PREDICT:
