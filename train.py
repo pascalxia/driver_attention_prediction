@@ -41,7 +41,7 @@ def main(argv):
     'learning_rate': args.learning_rate,
     'quick_summary_period': args.quick_summary_period,
     'slow_summary_period': args.slow_summary_period,
-    
+    'readout': args.readout,
   }
   
   model = tf.estimator.Estimator(
