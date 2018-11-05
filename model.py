@@ -27,7 +27,7 @@ def model_fn(features, labels, mode, params):
     readout_net = networks.thick_conv_lstm_readout_net
   
   if params['output_embedding']:
-    lgoits, embed, raw_logits = readout_net(feature_maps, 
+    logits, embed, raw_logits = readout_net(feature_maps, 
                                             feature_map_size=params['feature_map_size'], 
                                             drop_rate=0.2,
                                             output_embedding=True)

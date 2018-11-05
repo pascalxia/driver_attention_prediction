@@ -60,9 +60,6 @@ def input_fn(dataset, batch_size, n_steps, shuffle, include_labels, n_epochs, ar
     files = tf.data.Dataset.list_files(os.path.join(args.data_dir, dataset, 'tfrecords',
       'cameras_*.tfrecords'))
   
-  files = tf.data.Dataset.list_files(os.path.join(args.data_dir, dataset, 'tfrecords',
-    'cameras_gazes_'+args.feature_name+\
-    '_features_%dfuture_*.tfrecords' % args.n_future_steps))
   if shuffle:
     files = files.shuffle(buffer_size=10)
   
@@ -161,11 +158,11 @@ def input_fn(dataset, batch_size, n_steps, shuffle, include_labels, n_epochs, ar
       
     if include_labels:
       gazemaps = tf.map_fn(
-      tf.image.decode_jpeg,
-      gazemaps,
-      dtype=tf.uint8,
-      back_prop=False
-    )
+        tf.image.decode_jpeg,
+        gazemaps,
+        dtype=tf.uint8,
+        back_prop=False
+      )
       
     
     # return features and labels
