@@ -26,15 +26,10 @@ def model_fn(features, labels, mode, params):
   elif params['readout'] == 'thick_conv_lstm':
     readout_net = networks.thick_conv_lstm_readout_net
   
-  if 'output_embedding' in params and params['output_embedding']:
-    logits, embed, raw_logits = readout_net(feature_maps, 
-                                            feature_map_size=params['feature_map_size'], 
-                                            drop_rate=0.2,
-                                            output_embedding=True)
-  else:
-    logits = readout_net(feature_maps, 
-                         feature_map_size=params['feature_map_size'], 
-                         drop_rate=0.2)
+  logits, embed, raw_logits = readout_net(feature_maps, 
+                                          feature_map_size=params['feature_map_size'], 
+                                          drop_rate=0.2,
+                                          output_embedding=True)
   
   # get prediction
   ps = tf.nn.softmax(logits)
@@ -121,6 +116,10 @@ def model_fn(features, labels, mode, params):
   slow_summaries.append(
     tf.summary.image('predictions', predicted_gazemaps, max_outputs=2)
   )
+  for i in range(embed.shape[-1]):
+    slow_summaries.append(
+      tf.summary.histogram('embed_'+str(i), embed[..., i])
+    )
   slow_summary_op = tf.summary.merge(slow_summaries, name='slow_summary')
   slow_summary_hook = tf.train.SummarySaverHook(
     params['slow_summary_period'],
