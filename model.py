@@ -26,7 +26,7 @@ def model_fn(features, labels, mode, params):
   elif params['readout'] == 'thick_conv_lstm':
     readout_net = networks.thick_conv_lstm_readout_net
   
-  if params['output_embedding']:
+  if 'output_embedding' in params and params['output_embedding']:
     logits, embed, raw_logits = readout_net(feature_maps, 
                                             feature_map_size=params['feature_map_size'], 
                                             drop_rate=0.2,
@@ -41,7 +41,7 @@ def model_fn(features, labels, mode, params):
   predictions = {
       'ps': ps
   }
-  if params['output_embedding']:
+  if 'output_embedding' in params and params['output_embedding']:
     predictions['embed'] = embed
     predictions['raw_logits'] = raw_logits
     predictions['raw_ps'] = tf.nn.softmax(raw_logits)
