@@ -489,7 +489,7 @@ def thick_conv_lstm_readout_net(feature_map_in_seqs, feature_map_size, drop_rate
                                   return_sequences=True)
     x = conv_lstm([x, initial_c, initial_h])
     embed = tf.reshape(x, [batch_size*n_step, 
-                       feature_map_size[0], feature_map_size[1], -1])
+                       feature_map_size[0], feature_map_size[1], 5])
     
     x = wps.TimeDistributed(layers.Conv2D(1, (1, 1), activation='linear'))(x)
     
