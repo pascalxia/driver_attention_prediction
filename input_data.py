@@ -1,5 +1,6 @@
 import os
-import tensorflow as tf 
+import tensorflow as tf
+import augment_images
 
 
 
@@ -90,12 +91,10 @@ def input_fn(dataset, batch_size, n_steps, shuffle, include_labels, n_epochs, ar
     if include_labels:
       context_feature_info['gazemaps'] = tf.VarLenFeature(dtype=tf.string)
       sequence_feature_info['gaze_ps'] = tf.FixedLenSequenceFeature(shape=[], dtype=tf.string)
-    
     # parse the example
     context_features, sequence_features = tf.parse_single_sequence_example(example, 
       context_features=context_feature_info,
       sequence_features=sequence_feature_info)
-    
     # collect parsed data
     cameras = tf.sparse_tensor_to_dense(context_features["cameras"], default_value='')
     video_id = tf.sparse_tensor_to_dense(context_features["video_id"], default_value='')
@@ -103,9 +102,6 @@ def input_fn(dataset, batch_size, n_steps, shuffle, include_labels, n_epochs, ar
     weights = sequence_features['weights']
     if include_labels:
       gazemaps = tf.sparse_tensor_to_dense(context_features["gazemaps"], default_value='')
-      labels = tf.reshape(tf.decode_raw(sequence_features["gaze_ps"], tf.float32), 
-        [-1, args.gazemap_size[0]*args.gazemap_size[1]])
-    
     # sample a subsequence
     def sample_offset():
       """
@@ -120,21 +116,16 @@ def input_fn(dataset, batch_size, n_steps, shuffle, include_labels, n_epochs, ar
         offset = tf.random_uniform(shape=[], minval=0, 
                                    maxval=tf.maximum(length-n_steps+1, 1), dtype=tf.int32)
       return offset
-    
     if n_steps is not None:
       #select a subsequence
       length = tf.shape(cameras)[0]
       offset = tf.cond(tf.less(length, n_steps), lambda: 0, sample_offset)
-          
       end = tf.minimum(offset+n_steps, length)
       cameras = cameras[offset:end]
       predicted_time_points = predicted_time_points[offset:end]
       weights = weights[offset:end]
       if include_labels:
         gazemaps = gazemaps[offset:end]
-        labels = labels[offset:end]
-    
-    # post-process data
     # decode jpg's
     cameras = tf.map_fn(
       tf.image.decode_jpeg,
@@ -142,10 +133,6 @@ def input_fn(dataset, batch_size, n_steps, shuffle, include_labels, n_epochs, ar
       dtype=tf.uint8,
       back_prop=False
     )
-    if not weight_data:
-      weights = tf.ones(tf.shape(weights))
-    else:
-      weights = tf.tile(tf.reduce_mean(weights, axis=0, keep_dims=True), [tf.shape(cameras)[0],])
     if include_labels:
       gazemaps = tf.map_fn(
         tf.image.decode_jpeg,
@@ -153,28 +140,58 @@ def input_fn(dataset, batch_size, n_steps, shuffle, include_labels, n_epochs, ar
         dtype=tf.uint8,
         back_prop=False
       )
-      
-    # return features and labels
+    # handle sampling weights
+    if not weight_data:
+      weights = tf.ones(tf.shape(weights))
+    else:
+      weights = tf.tile(tf.reduce_mean(weights, axis=0, keepdims=True), [tf.shape(cameras)[0],])
+    # return features
     features = {}
     features['cameras'] = cameras
     features['video_id'] = video_id[0]
     features['predicted_time_points'] = predicted_time_points
     features['weights'] = weights
-    
     if include_labels:
       features['gazemaps'] = gazemaps
-      return features, labels
-    else:
-      return features
-  
+    return features
   dataset = dataset.map(_parse_function, num_parallel_calls=10)
+  
+  # Filter out sequences containing invalid gaze maps
+  def gazemap_filter(features):
+    gazemap_sums = tf.reduce_sum(features['gazemaps'], [1, 2])
+    return tf.reduce_all(tf.greater(gazemap_sums, 0))
+  if include_labels:
+    dataset = dataset.filter(gazemap_filter)
+  
+  # Image augmentation
+  def _image_augmentation(features):
+    if include_labels:
+      features['cameras'], features['gazemaps'] = augment_images.augment_images(
+        features['cameras'], features['gazemaps']
+      )
+    else:
+      features['cameras'] = augment_images.augment_images(
+        features['cameras']
+      )
+    return features
+  dataset = dataset.map(_image_augmentation, num_parallel_calls=10)
+  
+  # Generate probability labels
+  def _generate_labels(features):
+    gazemaps = features['gazemaps']
+    labels = tf.cast(gazemaps, tf.float32)
+    labels = tf.reshape(labels, [-1, args.gazemap_size[0]*args.gazemap_size[1]])
+    label_sums = tf.reduce_sum(labels, axis=1, keepdims=True)
+    labels = labels / label_sums
+    return features, labels
+  if include_labels:
+    dataset = dataset.map(_generate_labels, num_parallel_calls=10)
   
   # Pad batched data
   padded_shapes = {'cameras': [None,]+args.image_size+[3],
                    'video_id': [],
                    'predicted_time_points': [None,],
                    'weights': [None,]}
-                   
   if include_labels:
     padded_shapes['gazemaps'] = [None,]+args.image_size+[1]
     padded_shapes = (padded_shapes, [None, args.gazemap_size[0]*args.gazemap_size[1]])
