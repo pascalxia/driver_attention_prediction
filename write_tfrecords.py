@@ -9,6 +9,7 @@ import add_args
 import random
 import pdb
 import feather
+from multiprocessing import Pool
 
 
 import data_point_collector as dpc
@@ -25,6 +26,7 @@ parser = argparse.ArgumentParser()
 add_args.for_general(parser)
 add_args.for_lstm(parser)
 parser.add_argument('--n_divides', type=int, default=1)
+parser.add_argument('--n_threads', type=int, default=10)
 args = parser.parse_args()
 
 
@@ -52,14 +54,14 @@ if args.weight_data:
     weight_table = weight_table.set_index(['clipInt', 'time'])
     
 
-for i in range(len(splits)):
+def write_one_shard(shard_idx):
     with tf.python_io.TFRecordWriter(
         os.path.join(tfrecord_folder, 
         "cameras_gazes_%dfuture_%d.tfrecords" \
-          % (args.n_future_steps, i) )) as writer:
+          % (args.n_future_steps, shard_idx) )) as writer:
         
         
-        for seq in tqdm(splits[i]):
+        for seq in splits[shard_idx]:
             camera_features = list()
             gazemap_features = list()
             gaze_ps_features = list()
@@ -135,5 +137,8 @@ for i in range(len(splits)):
                 feature_lists=tf.train.FeatureLists(feature_list=feature_lists))
             writer.write(example.SerializeToString())
             
+
+with Pool(args.n_threads) as pool:
+    list(tqdm(pool.imap(write_one_shard, range(args.n_divides)), total=args.n_divides))
 
 
