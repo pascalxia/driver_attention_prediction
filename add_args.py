@@ -33,11 +33,17 @@ def for_general(parser):
      'type': str,
      'help': 'folder from which restore the model '},
     {
-     'name': 'image_size',
+     'name': 'camera_size',
      'nargs': 2,
      'default': [576,1024],
      'type': int,
      'help': 'Size of the input image'},
+    {
+     'name': 'visual_size',
+     'nargs': 2,
+     'default': [288,512],
+     'type': int,
+     'help': 'Size of the images visualized in Tensorboard'},
     {
      'name': 'gazemap_size',
      'nargs': 2,

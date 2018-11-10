@@ -9,7 +9,7 @@ def model_fn(features, labels, mode, params):
   cameras = features['cameras']
   camera_input = tf.cast(cameras, tf.float32)
   camera_input = tf.reshape(camera_input, 
-                            [-1, params['image_size'][0], params['image_size'][1], 3])
+                            [-1, params['camera_size'][0], params['camera_size'][1], 3])
   camera_input = camera_input - [123.68, 116.79, 103.939]
   weights = features['weights']
   weights = tf.reshape(weights, (-1,))
@@ -117,11 +117,15 @@ def model_fn(features, labels, mode, params):
     
   # slow summary
   slow_summaries = []
+  camera_visual = tf.reshape(cameras, [-1,]+params['camera_size']+[3])
+  camera_visual = tf.image.resize_bilinear(camera_visual, params['visual_size'])
   slow_summaries.append(
-    tf.summary.image('cameras', tf.reshape(cameras, [-1,]+params['image_size']+[3]), max_outputs=2)
+    tf.summary.image('cameras', camera_visual, max_outputs=2)
   )
+  gazemap_visual = tf.reshape(gazemaps, [-1,]+params['gazemap_size']+[1])
+  gazemap_visual = tf.image.resize_bilinear(gazemap_visual, params['visual_size'])
   slow_summaries.append(
-    tf.summary.image('gazemaps', tf.reshape(gazemaps, [-1,]+params['image_size']+[1]), max_outputs=2)
+    tf.summary.image('gazemaps', gazemap_visual, max_outputs=2)
   )
   slow_summaries.append(
     tf.summary.image('predictions', predicted_gazemaps, max_outputs=2)

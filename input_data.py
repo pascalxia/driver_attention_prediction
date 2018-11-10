@@ -188,12 +188,12 @@ def input_fn(dataset, batch_size, n_steps, shuffle, include_labels, n_epochs, ar
     dataset = dataset.map(_generate_labels, num_parallel_calls=10)
   
   # Pad batched data
-  padded_shapes = {'cameras': [None,]+args.image_size+[3],
+  padded_shapes = {'cameras': [None,]+args.camera_size+[3],
                    'video_id': [],
                    'predicted_time_points': [None,],
                    'weights': [None,]}
   if include_labels:
-    padded_shapes['gazemaps'] = [None,]+args.image_size+[1]
+    padded_shapes['gazemaps'] = [None,]+args.gazemap_size+[1]
     padded_shapes = (padded_shapes, [None, args.gazemap_size[0]*args.gazemap_size[1]])
       
   dataset = dataset.padded_batch(batch_size, padded_shapes=padded_shapes)

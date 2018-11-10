@@ -72,7 +72,7 @@ for i in range(len(splits)):
                 camera = cv2.imread(os.path.join(camera_folder,seq[j]+'.jpg'))               # do not flip bgr for imencode
                 camera = cv2.resize(
                   camera, 
-                  tuple(args.image_size[::-1]),
+                  tuple(args.camera_size[::-1]),
                   interpolation=cv2.INTER_LINEAR
                 )
                 camera = cv2.imencode('.jpg', camera)[1].tostring()                     # imencode returns tuple(bool, ndarray)
@@ -102,7 +102,7 @@ for i in range(len(splits)):
                 # write gazemap images
                 gazemap = cv2.resize(
                   gazemap, 
-                  tuple(args.image_size[::-1]), 
+                  tuple(args.gazemap_size[::-1]), 
                   interpolation=cv2.INTER_AREA
                 ) # please check this size as well
                 gazemap = cv2.imencode('.jpg', gazemap)[1].tostring()

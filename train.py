@@ -32,9 +32,10 @@ def main(argv):
                                   log_step_count_steps=10)
                                   
   params = {
-    'image_size': args.image_size,
+    'camera_size': args.camera_size,
     'gazemap_size': args.gazemap_size,
     'feature_map_size': args.feature_map_size,
+    'visual_size': args.visual_size,
     'model_dir': args.model_dir,
     'weight_data': args.weight_data,
     'epsilon': 1e-12,
