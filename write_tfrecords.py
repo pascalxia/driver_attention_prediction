@@ -63,7 +63,7 @@ for i in range(len(splits)):
             camera_features = list()
             gazemap_features = list()
             gaze_ps_features = list()
-            video_id = int(seq[0].split('_')[0])
+            video_id = bytes(seq[0].split('_')[0], encoding = "utf8")
             predicted_time_point_features = list()
             weight_features = list()
             
@@ -128,7 +128,7 @@ for i in range(len(splits)):
                              'weights': tf.train.FeatureList(feature=weight_features)}
             features = {'cameras': tf.train.Feature(bytes_list=tf.train.BytesList(value=camera_features)),
                         'gazemaps': tf.train.Feature(bytes_list=tf.train.BytesList(value=gazemap_features)),
-                        'video_id': tf.train.Feature(int64_list=tf.train.Int64List(value=[video_id]))}
+                        'video_id': tf.train.Feature(bytes_list=tf.train.BytesList(value=[video_id]))}
             
             example = tf.train.SequenceExample(
                 context=tf.train.Features(feature=features),
