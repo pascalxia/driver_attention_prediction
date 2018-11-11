@@ -87,12 +87,21 @@ def model_fn(features, labels, mode, params):
   kl = tf.metrics.mean(kls)
     
   # Calculate spreadness
-  grid_x, grid_y = np.meshgrid(np.arange(params['gazemap_size'][1]), 
-                               np.arange(params['gazemap_size'][0]))
-  dist_matrix = np.sqrt(np.square(grid_x-params['gazemap_size'][1]/2) + \
-                        np.square(grid_y-params['gazemap_size'][0]/2))
-  spread = tf.multiply(ps, np.reshape(dist_matrix, (-1,)))
-  spread = tf.reduce_sum(spread, axis=-1)
+  _, grid_y, grid_x = tf.meshgrid(tf.range(batch_size_tensor*n_steps_tensor),
+                                  tf.range(params['gazemap_size'][0]),
+                                  tf.range(params['gazemap_size'][1]),
+                                  indexing='ij')
+
+  height_trans = params['gazemap_size'][0] * tf_repeat(features['translation'][:, 1], n_steps_tensor)
+  width_trans = params['gazemap_size'][1] * tf_repeat(features['translation'][:, 0], n_steps_tensor)
+  height_center = params['gazemap_size'][0]/2 + height_trans
+  width_center = params['gazemap_size'][1]/2 + width_trans
+  height_center = tf.reshape(height_center, [-1, 1, 1])
+  width_center = tf.reshape(width_center, [-1, 1, 1])
+  dist_matrix = tf.sqrt(tf.square(tf.cast(grid_x, tf.float32)-width_center) + \
+                        tf.square(tf.cast(grid_y, tf.float32)-height_center))
+  spread = tf.multiply(predicted_gazemaps[..., 0], dist_matrix)
+  spread = tf.reduce_sum(spread, axis=[-2, -1])
   spread = tf.metrics.mean(spread)
   
   metrics = {
@@ -145,3 +154,10 @@ def model_fn(features, labels, mode, params):
     train_op=train_op,
     eval_metric_ops=metrics,
     training_hooks=[quick_summary_hook, slow_summary_hook])
+
+def tf_repeat(a_tensor, repeat):
+  a_tensor = tf.reshape(a_tensor, [-1, 1])    # Convert to a n x 1 matrix.
+  a_tensor = tf.tile(a_tensor, [1, repeat])  # Create multiple columns.
+  a_tensor = tf.reshape(a_tensor, [-1])       # Convert back to a vector.
+  return a_tensor
+  

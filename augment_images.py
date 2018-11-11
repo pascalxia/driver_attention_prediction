@@ -48,7 +48,7 @@ def augment_images(cameras, gazemaps=None):
     gazemaps = tf.contrib.image.translate(
       gazemaps,
       translations)
-    return cameras, gazemaps
+    return cameras, gazemaps, relative_transloations
   else:
-    return cameras
+    return cameras, relative_transloations
   

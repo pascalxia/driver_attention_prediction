@@ -158,17 +158,20 @@ def input_fn(dataset, batch_size, n_steps, shuffle, include_labels, n_epochs, ar
   
   # Image augmentation
   def _image_augmentation(features):
-    if include_labels:
-      features['cameras'], features['gazemaps'] = augment_images.augment_images(
-        features['cameras'], features['gazemaps']
-      )
+    if not augment_data:
+      features['translation'] = tf.zeros([2,], dtype=tf.float32)
+      return features
     else:
-      features['cameras'] = augment_images.augment_images(
-        features['cameras']
-      )
-    return features
-  if augment_data:
-    dataset = dataset.map(_image_augmentation, num_parallel_calls=10)
+      if include_labels:
+        features['cameras'], features['gazemaps'], features['translation'] = augment_images.augment_images(
+          features['cameras'], features['gazemaps']
+        )
+      else:
+        features['cameras'], features['translation'] = augment_images.augment_images(
+          features['cameras']
+        )
+      return features
+  dataset = dataset.map(_image_augmentation, num_parallel_calls=10)
   
   # Filter out sequences containing invalid gaze maps
   def gazemap_filter(features):
@@ -192,7 +195,8 @@ def input_fn(dataset, batch_size, n_steps, shuffle, include_labels, n_epochs, ar
   padded_shapes = {'cameras': [None,]+args.camera_size+[3],
                    'video_id': [],
                    'predicted_time_points': [None,],
-                   'weights': [None,]}
+                   'weights': [None,],
+                   'translation': [2,]}
   if include_labels:
     padded_shapes['gazemaps'] = [None,]+args.gazemap_size+[1]
     padded_shapes = (padded_shapes, [None, args.gazemap_size[0]*args.gazemap_size[1]])
