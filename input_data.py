@@ -156,13 +156,6 @@ def input_fn(dataset, batch_size, n_steps, shuffle, include_labels, n_epochs, ar
     return features
   dataset = dataset.map(_parse_function, num_parallel_calls=10)
   
-  # Filter out sequences containing invalid gaze maps
-  def gazemap_filter(features):
-    gazemap_sums = tf.reduce_sum(features['gazemaps'], [1, 2])
-    return tf.reduce_all(tf.greater(gazemap_sums, 0))
-  if include_labels:
-    dataset = dataset.filter(gazemap_filter)
-  
   # Image augmentation
   def _image_augmentation(features):
     if include_labels:
@@ -175,6 +168,13 @@ def input_fn(dataset, batch_size, n_steps, shuffle, include_labels, n_epochs, ar
       )
     return features
   dataset = dataset.map(_image_augmentation, num_parallel_calls=10)
+  
+  # Filter out sequences containing invalid gaze maps
+  def gazemap_filter(features):
+    gazemap_sums = tf.reduce_sum(features['gazemaps'], [1, 2])
+    return tf.reduce_all(tf.greater(gazemap_sums, 0))
+  if include_labels:
+    dataset = dataset.filter(gazemap_filter)
   
   # Generate probability labels
   def _generate_labels(features):
