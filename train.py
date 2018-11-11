@@ -68,7 +68,8 @@ def main(argv):
       args.batch_size, args.n_steps, 
       shuffle=True, include_labels=True, 
       n_epochs=args.epochs_before_validation, args=args,
-      weight_data=args.weight_data)
+      weight_data=args.weight_data,
+      augment_data=args.augment_data)
     )
     # validate the model
     K.clear_session()

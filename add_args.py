@@ -194,7 +194,12 @@ def for_training(parser):
      'name': 'logs_dir',
      'default': None,
      'type': str,
-     'help': 'path to logs directory'}
+     'help': 'path to logs directory'},
+    {
+     'name': 'augment_data',
+     'default': False,
+     'type': str2bool,
+     'help': 'whether to use data augmentation during training'},
     ]
     add_args(args, parser)
     

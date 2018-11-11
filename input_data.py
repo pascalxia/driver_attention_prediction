@@ -49,7 +49,7 @@ def undersampling_filter(example):
     return acceptance
 
 
-def input_fn(dataset, batch_size, n_steps, shuffle, include_labels, n_epochs, args, weight_data=False):
+def input_fn(dataset, batch_size, n_steps, shuffle, include_labels, n_epochs, args, weight_data=False, augment_data=False):
   """Prepare data for training."""
   
   # get and shuffle tfrecords files
@@ -167,7 +167,8 @@ def input_fn(dataset, batch_size, n_steps, shuffle, include_labels, n_epochs, ar
         features['cameras']
       )
     return features
-  dataset = dataset.map(_image_augmentation, num_parallel_calls=10)
+  if augment_data:
+    dataset = dataset.map(_image_augmentation, num_parallel_calls=10)
   
   # Filter out sequences containing invalid gaze maps
   def gazemap_filter(features):
