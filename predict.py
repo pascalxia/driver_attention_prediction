@@ -12,6 +12,7 @@ from keras import backend as K
 import shutil
 import numpy as np
 import scipy.misc as misc
+from tqdm import tqdm
 
 from input_data import input_fn
 from model import model_fn
@@ -70,9 +71,9 @@ def main(argv):
   output_dir = os.path.join(args.model_dir, 'prediction_iter_'+args.model_iteration)
   if not os.path.isdir(output_dir):
     os.makedirs(output_dir)
-  for res in predict_generator:
+  for res in tqdm(predict_generator):
     output_path = os.path.join(output_dir, 
-      str(res['video_id'])+'_'+str(res['predicted_time_points'][0]).zfill(5)+'.jpg')
+      res['video_id'].decode("utf-8")+'_'+str(res['predicted_time_points'][0]).zfill(5)+'.jpg')
     gazemap = np.reshape(res['ps'], args.gazemap_size)
     misc.imsave(output_path, gazemap)
 
