@@ -37,9 +37,10 @@ def model_fn(features, labels, mode, params):
       readout_net = networks.big_conv_lstm_readout_net
     elif params['readout'] == 'thick_conv_lstm':
       readout_net = networks.thick_conv_lstm_readout_net
-    logits = readout_net(feature_map_in_seqs, 
+    logits, embed, raw_logits = readout_net(feature_map_in_seqs, 
                          feature_map_size=feature_map_size, 
-                         drop_rate=0.2)
+                         drop_rate=0.2,
+                         output_embedding=True)
   
   # get prediction
   ps = tf.nn.softmax(logits)
