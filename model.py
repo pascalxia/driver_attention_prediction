@@ -13,6 +13,7 @@ def model_fn(features, labels, mode, params):
   camera_input = camera_input - [123.68, 116.79, 103.939]
   weights = features['weights']
   weights = tf.reshape(weights, (-1,))
+  
   video_id = features['video_id']
   predicted_time_points = features['predicted_time_points']
   
@@ -45,6 +46,10 @@ def model_fn(features, labels, mode, params):
   predictions = {
       'ps': ps
   }
+  if 'output_embedding' in params and params['output_embedding']:
+    predictions['embed'] = embed
+    predictions['raw_logits'] = raw_logits
+    predictions['raw_ps'] = tf.nn.softmax(raw_logits)
   predicted_gazemaps = tf.reshape(ps, [-1,]+params['gazemap_size']+[1])
   
   
@@ -139,6 +144,10 @@ def model_fn(features, labels, mode, params):
   slow_summaries.append(
     tf.summary.image('predictions', predicted_gazemaps, max_outputs=2)
   )
+  for i in range(embed.shape[-1]):
+    slow_summaries.append(
+      tf.summary.histogram('embed_'+str(i), embed[..., i])
+    )
   slow_summary_op = tf.summary.merge(slow_summaries, name='slow_summary')
   slow_summary_hook = tf.train.SummarySaverHook(
     params['slow_summary_period'],

@@ -126,6 +126,7 @@ def input_fn(dataset, batch_size, n_steps, shuffle, include_labels, n_epochs, ar
       weights = weights[offset:end]
       if include_labels:
         gazemaps = gazemaps[offset:end]
+    # Post-process data
     # decode jpg's
     cameras = tf.map_fn(
       tf.image.decode_jpeg,
@@ -202,7 +203,7 @@ def input_fn(dataset, batch_size, n_steps, shuffle, include_labels, n_epochs, ar
     padded_shapes = (padded_shapes, [None, args.gazemap_size[0]*args.gazemap_size[1]])
       
   dataset = dataset.padded_batch(batch_size, padded_shapes=padded_shapes)
-                                                               
+  
   # Prefetch and repeat
   dataset = dataset.prefetch(buffer_size=batch_size)
   dataset = dataset.repeat(n_epochs)
