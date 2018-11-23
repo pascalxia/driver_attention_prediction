@@ -19,7 +19,7 @@ def model_fn(features, labels, mode, params):
   
   # build up model
   with tf.variable_scope("encoder"):
-    readout_network = networks.alex_encoder(params)
+    readout_network = networks.pure_vgg_encoder(params)
     feature_maps = readout_network(camera_input)
     batch_size_tensor = tf.shape(cameras)[0]
     n_steps_tensor = tf.shape(cameras)[1]
@@ -55,9 +55,10 @@ def model_fn(features, labels, mode, params):
   
   
   if mode == tf.estimator.ModeKeys.PREDICT:
-    predictions['video_id'] = tf.tile(video_id, tf.shape(ps)[0:1])
-    predictions['predicted_time_points'] = tf.reshape(predicted_time_points, shape=[-1, 1])
-    return tf.estimator.EstimatorSpec(mode=mode, predictions=predictions)
+    if 'output_loss' not in params or params['output_loss'] == False:
+      predictions['video_id'] = tf.tile(video_id, tf.shape(ps)[0:1])
+      predictions['predicted_time_points'] = tf.reshape(predicted_time_points, shape=[-1, 1])
+      return tf.estimator.EstimatorSpec(mode=mode, predictions=predictions)
   
   
   # set up loss
@@ -114,6 +115,14 @@ def model_fn(features, labels, mode, params):
     'custom_cc': custom_cc,
     'kl': kl,
     'spread': spread,}
+    
+  if 'output_loss' in params and params['output_loss']:
+    predictions['kl'] = kl
+    predictions['cc'] = custom_cc
+  if mode == tf.estimator.ModeKeys.PREDICT:
+    predictions['video_id'] = tf.tile(video_id, tf.shape(ps)[0:1])
+    predictions['predicted_time_points'] = tf.reshape(predicted_time_points, shape=[-1, 1])
+    return tf.estimator.EstimatorSpec(mode=mode, predictions=predictions)
   
   # set up summaries
   gazemaps = features['gazemaps']

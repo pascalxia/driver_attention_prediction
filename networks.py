@@ -12,6 +12,7 @@ import numpy as np
 import keras.layers.wrappers as wps
 from keras.models import Model
 from keras.applications.xception import Xception
+from keras.applications.vgg19 import VGG19
 import my_vgg19
 from keras.layers.merge import concatenate
 from my_squeezenet import SqueezeNet
@@ -53,6 +54,18 @@ def vgg_encoder(image_size):
     weight_to_monitor = feature_net.get_layer('block5_pure_conv3').weights[0][0,0,0,0]
     
     return feature_net, weight_to_monitor
+    
+def pure_vgg_encoder(image_size):
+    encoder = VGG19(weights='imagenet', include_top=False)
+    print('Model loaded.')
+    
+    feature_map_temp = concatenate([encoder.get_layer('block4_conv1').output,
+                                    encoder.get_layer('block4_conv2').output,
+                                    encoder.get_layer('block4_conv3').output,
+                                    encoder.get_layer('block4_conv4').output], axis=3)
+    feature_net = Model(inputs=encoder.input, 
+                        outputs=feature_map_temp)
+    return feature_net
 
 def squeeze_encoder(image_size):
     encoder = SqueezeNet(input_shape=image_size + (3,))
@@ -66,6 +79,12 @@ def squeeze_encoder(image_size):
     
     return feature_net, weight_to_monitor
 
+def pure_alex_encoder(args):
+    def feature_net(input_tensor):
+        feature_map = AlexNet(input_tensor)
+        return feature_map
+    return feature_net
+    
 def alex_encoder(args):
     def feature_net(input_tensor):
         feature_map = AlexNet(input_tensor)
@@ -504,7 +523,7 @@ def thick_conv_lstm_readout_net(feature_map_in_seqs, feature_map_size, drop_rate
                        feature_map_size[0], feature_map_size[1], 1])
     raw_logits = tf.reshape(x, [-1, feature_map_size[0]*feature_map_size[1]])
     
-    x = GaussianSmooth(kernel_size = GAUSSIAN_KERNEL_SIZE, name='gaussian_smooth')(x)
+    #x = GaussianSmooth(kernel_size = GAUSSIAN_KERNEL_SIZE, name='gaussian_smooth')(x)
     
     logits = tf.reshape(x, [-1, feature_map_size[0]*feature_map_size[1]])
     

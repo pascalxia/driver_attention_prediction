@@ -32,7 +32,7 @@ args = parser.parse_args()
 
 camera_folder = os.path.join(args.data_dir, 'camera_images')
 gazemap_folder = os.path.join(args.data_dir, 'gazemap_images')
-tfrecord_folder = os.path.join(args.data_dir, 'tfrecords')
+tfrecord_folder = os.path.join(args.data_dir, 'tfrecords_128')
 
 if not os.path.isdir(tfrecord_folder):
     os.makedirs(tfrecord_folder)

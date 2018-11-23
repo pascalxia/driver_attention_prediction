@@ -54,7 +54,7 @@ def input_fn(dataset, batch_size, n_steps, shuffle, include_labels, n_epochs, ar
   
   # get and shuffle tfrecords files
   if include_labels:
-    files = tf.data.Dataset.list_files(os.path.join(args.data_dir, dataset, 'tfrecords',
+    files = tf.data.Dataset.list_files(os.path.join(args.data_dir, dataset, 'tfrecords_128',
       'cameras_gazes_%dfuture_*.tfrecords' % args.n_future_steps))
   else:
     files = tf.data.Dataset.list_files(os.path.join(args.data_dir, dataset, 'tfrecords',
