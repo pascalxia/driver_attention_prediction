@@ -34,7 +34,6 @@ def main(argv):
   params = {
     'camera_size': args.camera_size,
     'gazemap_size': args.gazemap_size,
-    'feature_map_size': args.feature_map_size,
     'visual_size': args.visual_size,
     'model_dir': args.model_dir,
     'weight_data': args.weight_data,
