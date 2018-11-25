@@ -81,6 +81,7 @@ def squeeze_encoder(image_size):
 
 def pure_alex_encoder(args):
     def feature_net(input_tensor):
+        input_tensor = tf.image.resize_bilinear(input_tensor, [313,537])
         feature_map = AlexNet(input_tensor)
         return feature_map
     return feature_net
