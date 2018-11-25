@@ -19,7 +19,7 @@ def model_fn(features, labels, mode, params):
   
   # build up model
   with tf.variable_scope("encoder"):
-    readout_network = networks.pure_vgg_encoder(params)
+    readout_network = networks.shallow_alex_encoder(params)
     feature_maps = readout_network(camera_input)
     batch_size_tensor = tf.shape(cameras)[0]
     n_steps_tensor = tf.shape(cameras)[1]

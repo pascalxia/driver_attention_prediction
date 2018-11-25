@@ -16,7 +16,7 @@ from keras.applications.vgg19 import VGG19
 import my_vgg19
 from keras.layers.merge import concatenate
 from my_squeezenet import SqueezeNet
-from my_alexnet import AlexNet
+from my_alexnet import AlexNet, ShallowAlexNet
 from keras.layers.normalization import BatchNormalization
 
 
@@ -82,6 +82,15 @@ def squeeze_encoder(image_size):
 def pure_alex_encoder(args):
     def feature_net(input_tensor):
         feature_map = AlexNet(input_tensor)
+        return feature_map
+    return feature_net
+    
+def shallow_alex_encoder(args):
+    def feature_net(input_tensor):
+        feature_map = ShallowAlexNet(input_tensor)
+        feature_map = tf.image.resize_nearest_neighbor(feature_map, [9,14])
+        feature_map = tf.concat([feature_map[:,:,0:1], feature_map, feature_map[:,:,-1:]],
+                                axis=2)
         return feature_map
     return feature_net
     
