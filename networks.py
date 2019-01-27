@@ -507,12 +507,14 @@ def thick_conv_lstm_readout_net(feature_map_in_seqs, feature_map_size, drop_rate
     temp_shape = [int(s) for s in temp_shape]
     x = tf.reshape(x, [batch_size, n_step, temp_shape[0], temp_shape[1], temp_shape[2]])
     
-    initial_c = layers.Conv2D(5, (3, 3), activation='tanh', padding='same')(layers.core.Dropout(drop_rate)(x[:, 0]))
+    n_channel = 15
+    
+    initial_c = layers.Conv2D(n_channel, (3, 3), activation='tanh', padding='same')(layers.core.Dropout(drop_rate)(x[:, 0]))
     initial_c = layers.core.Dropout(drop_rate)(initial_c)
-    initial_h = layers.Conv2D(5, (3, 3), activation='tanh', padding='same')(layers.core.Dropout(drop_rate)(x[:, 0]))
+    initial_h = layers.Conv2D(n_channel, (3, 3), activation='tanh', padding='same')(layers.core.Dropout(drop_rate)(x[:, 0]))
     initial_h = layers.core.Dropout(drop_rate)(initial_h)
     
-    conv_lstm = layers.ConvLSTM2D(filters=5,
+    conv_lstm = layers.ConvLSTM2D(filters=n_channel,
                                   kernel_size=(3,3),
                                   strides=(1,1),
                                   padding='same', 
@@ -520,9 +522,9 @@ def thick_conv_lstm_readout_net(feature_map_in_seqs, feature_map_size, drop_rate
                                   recurrent_dropout=drop_rate,
                                   return_sequences=True)
     x = conv_lstm([x, initial_c, initial_h])
-    x = wps.TimeDistributed(layers.Conv2D(5, (1, 1), activation='linear'))(x)
+    x = wps.TimeDistributed(layers.Conv2D(n_channel, (1, 1), activation='linear'))(x)
     x = tf.reshape(x, [batch_size*n_step, 
-                       feature_map_size[0], feature_map_size[1], 5])
+                       feature_map_size[0], feature_map_size[1], n_channel])
     x = layers.BatchNormalization()(x)
     embed = x
     
