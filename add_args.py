@@ -60,11 +60,16 @@ def for_general(parser):
      'default': 3,
      'type': int,
      'help': 'at which rate the model predicts'},
-     {
+    {
      'name': 'sample_rate',
      'default': 3,
      'type': int,
      'help': 'at which rate the input images are sampled'},
+    {
+     'name': 'visible_gpus',
+     'default': None,
+     'type': str,
+     'help': 'GPUs that are visible to Tensorflow, e.g., 0,1'},
     ]
     add_args(args, parser)
 

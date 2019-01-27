@@ -44,6 +44,9 @@ def main(argv):
     'readout': args.readout,
   }
   
+  if args.visible_gpus is not None:
+    os.environ["CUDA_VISIBLE_DEVICES"] = args.visible_gpus
+  
   model = tf.estimator.Estimator(
     model_fn=model_fn,
     model_dir=args.model_dir,
