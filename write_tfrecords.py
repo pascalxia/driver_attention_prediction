@@ -65,7 +65,8 @@ def write_one_shard(shard_idx):
             camera_features = list()
             gazemap_features = list()
             gaze_ps_features = list()
-            video_id = bytes(seq[0].split('_')[0], encoding = "utf8")
+            video_id = seq[0].split('_')[0]
+            video_id_feature = bytes(video_id, encoding = "utf8")
             predicted_time_point_features = list()
             weight_features = list()
             
@@ -130,7 +131,7 @@ def write_one_shard(shard_idx):
                              'weights': tf.train.FeatureList(feature=weight_features)}
             features = {'cameras': tf.train.Feature(bytes_list=tf.train.BytesList(value=camera_features)),
                         'gazemaps': tf.train.Feature(bytes_list=tf.train.BytesList(value=gazemap_features)),
-                        'video_id': tf.train.Feature(bytes_list=tf.train.BytesList(value=[video_id]))}
+                        'video_id': tf.train.Feature(bytes_list=tf.train.BytesList(value=[video_id_feature]))}
             
             example = tf.train.SequenceExample(
                 context=tf.train.Features(feature=features),
