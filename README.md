@@ -1,5 +1,9 @@
 # Driver Attention Prediction Model
 
+## Downloading Dataset:
+
+The Berkeley DeepDrive Attention dataset can be downloaded here: https://bdd-data.berkeley.edu/. Click on the "Download Dataset" to get to the user portal and then you will find the BDD-Attention dataset listed together with other Berkeley DeepDrive video datasets.
+
 ## Project Introduction:
 
 This project accompanies the paper **_Predicting Driver Attention in Critical Situations_** (https://arxiv.org/abs/1711.06406)
