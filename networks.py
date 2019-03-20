@@ -469,25 +469,20 @@ def thick_conv_lstm_readout_net(feature_map_in_seqs, feature_map_size, drop_rate
     x = layers.Conv2D(32, (1, 1), activation='relu', name='readout_conv2')(x)
     x = layers.core.Dropout(drop_rate)(x)
     x = layers.Conv2D(8, (1, 1), activation='relu', name='readout_conv3')(x)
+    #x = layers.core.Dropout(drop_rate)(x)
     
     # reshape into temporal sequence
     temp_shape = x.get_shape()[1:4]
     temp_shape = [int(s) for s in temp_shape]
     x = tf.reshape(x, [batch_size, n_step, temp_shape[0], temp_shape[1], temp_shape[2]])
     
-    initial_c = layers.Conv2D(5, (3, 3), activation='tanh', padding='same')(layers.core.Dropout(drop_rate)(x[:, 0]))
-    initial_c = layers.core.Dropout(drop_rate)(initial_c)
-    initial_h = layers.Conv2D(5, (3, 3), activation='tanh', padding='same')(layers.core.Dropout(drop_rate)(x[:, 0]))
-    initial_h = layers.core.Dropout(drop_rate)(initial_h)
-    
-    conv_lstm = layers.ConvLSTM2D(filters=5,
-                                  kernel_size=(3,3),
-                                  strides=(1,1),
-                                  padding='same', 
-                                  dropout=drop_rate, 
-                                  recurrent_dropout=drop_rate,
-                                  return_sequences=True)
-    x = conv_lstm([x, initial_c, initial_h])
+    x = layers.ConvLSTM2D(filters=5,
+                          kernel_size=(3,3),
+                          strides=(1,1),
+                          padding='same', 
+                          dropout=drop_rate, 
+                          recurrent_dropout=drop_rate,
+                          return_sequences=True)(x)
     
     x = wps.TimeDistributed(layers.Conv2D(1, (1, 1), activation='linear'))(x)
     
