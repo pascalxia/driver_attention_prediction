@@ -1,53 +1,3 @@
-import os
-import tensorflow as tf 
-
-
-
-def get_sample_prob(example):
-    sequence_feature_info = {
-        'weights': tf.FixedLenSequenceFeature(shape=[], dtype=tf.float32)
-    }
-    _, sequence_features = tf.parse_single_sequence_example(example, 
-        sequence_features=sequence_feature_info)
-    sample_prob = tf.reduce_mean(sequence_features['weights'])
-    return sample_prob
-
-
-def oversample_classes(example):
-    """
-    Returns the number of copies of given example
-    """
-    sample_prob = get_sample_prob(example)
-    # for sample_prob smaller than 1, we
-    # want to return 1
-    sample_prob = tf.maximum(sample_prob, 1) 
-    # for low probability classes this number will be very large
-    repeat_count = tf.floor(sample_prob)
-    # sample_prob can be e.g 1.9 which means that there is still 90%
-    # of change that we should return 2 instead of 1
-    repeat_residual = sample_prob - repeat_count # a number between 0-1
-    residual_acceptance = tf.less_equal(
-                        tf.random_uniform([], dtype=tf.float32), repeat_residual
-    )
-    
-    residual_acceptance = tf.cast(residual_acceptance, tf.int64)
-    repeat_count = tf.cast(repeat_count, dtype=tf.int64)
-    
-    return repeat_count + residual_acceptance
-
-
-def undersampling_filter(example):
-    """
-    Computes if given example is rejected or not.
-    """
-    sample_prob = get_sample_prob(example)
-    sample_prob = tf.minimum(sample_prob, 1.0)
-    
-    acceptance = tf.less_equal(tf.random_uniform([], dtype=tf.float32), sample_prob)
-
-    return acceptance
-
-
 def input_fn(dataset, batch_size, n_steps, shuffle, include_labels, n_epochs, args, weight_data=False):
   """Prepare data for training."""
   
@@ -61,13 +11,6 @@ def input_fn(dataset, batch_size, n_steps, shuffle, include_labels, n_epochs, ar
   # parellel interleave to get raw bytes
   dataset = files.apply(tf.contrib.data.parallel_interleave(
     tf.data.TFRecordDataset, cycle_length=5, block_length=batch_size))
-  
-  # if apply weighted sampling
-  if weight_data:
-    dataset = dataset.flat_map(
-      lambda x: tf.data.Dataset.from_tensors(x).repeat(oversample_classes(x))
-    )
-    dataset = dataset.filter(undersampling_filter)
   
   # shuffle before parsing
   if shuffle:
@@ -106,26 +49,11 @@ def input_fn(dataset, batch_size, n_steps, shuffle, include_labels, n_epochs, ar
         [-1, args.gazemap_size[0]*args.gazemap_size[1]])
     
     
-    def sample_offset():
-      """
-      sample the starting point (offset) according to the sampling weights of windows
-      """
-      cum_weights = tf.cumsum(weights, axis=0)
-      sample_prob = cum_weights[n_steps-1:] - tf.concat([[0,], cum_weights[:-n_steps]], axis=0)
-      sample_prob = sample_prob / tf.reduce_sum(sample_prob)
-      offset = tf.multinomial(logits=tf.log([sample_prob,]), num_samples=1, output_dtype=tf.int32)[0, 0]
-      return offset
-    
     if n_steps is not None:
       #select a subsequence
       length = tf.shape(cameras)[0]
-      if weight_data:
-        offset = tf.cond(tf.less(length, n_steps), lambda: 0, sample_offset)
-      else:
-        offset = tf.random_uniform(shape=[], minval=0, 
-                                   maxval=tf.maximum(length-n_steps+2, 1), dtype=tf.int32)
-  
-          
+      
+      offset = tf.random_uniform(shape=[], minval=0, maxval=tf.maximum(length-n_steps+1, 1), dtype=tf.int32)
       end = tf.minimum(offset+n_steps, length)
       cameras = cameras[offset:end]
       feature_maps = feature_maps[offset:end]
