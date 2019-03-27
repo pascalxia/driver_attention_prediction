@@ -6,7 +6,7 @@ The Berkeley DeepDrive Attention dataset can be downloaded here: https://bdd-dat
 
 ## Project Introduction:
 
-This project accompanies the paper **_Predicting Driver Attention in Critical Situations_** (https://arxiv.org/abs/1711.06406)
+This project accompanies the paper **_Training a network to attend like human drivers saves it from common but misleading loss functions_** (https://arxiv.org/abs/1711.06406)
 
 ## Demo:
 ![Demo image](wiki_images/demo.jpg)
