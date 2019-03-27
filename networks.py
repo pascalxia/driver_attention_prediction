@@ -476,13 +476,17 @@ def thick_conv_lstm_readout_net(feature_map_in_seqs, feature_map_size, drop_rate
     temp_shape = [int(s) for s in temp_shape]
     x = tf.reshape(x, [batch_size, n_step, temp_shape[0], temp_shape[1], temp_shape[2]])
     
-    x = layers.ConvLSTM2D(filters=5,
-                          kernel_size=(3,3),
-                          strides=(1,1),
-                          padding='same', 
-                          dropout=drop_rate, 
-                          recurrent_dropout=drop_rate,
-                          return_sequences=True)(x)
+    initial_c = layers.Conv2D(5, (1, 1), activation='tanh')(tf.reduce_mean(x, axis=1))
+    initial_h = layers.Conv2D(5, (1, 1), activation='tanh')(tf.reduce_mean(x, axis=1))
+    
+    conv_lstm = layers.ConvLSTM2D(filters=5,
+                                  kernel_size=(3,3),
+                                  strides=(1,1),
+                                  padding='same', 
+                                  dropout=drop_rate, 
+                                  recurrent_dropout=drop_rate,
+                                  return_sequences=True)
+    x = conv_lstm([x, initial_c, initial_h])
     
     x = wps.TimeDistributed(layers.Conv2D(1, (1, 1), activation='linear'))(x)
     
