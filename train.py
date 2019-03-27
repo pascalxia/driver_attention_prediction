@@ -200,7 +200,7 @@ def input_fn(dataset, batch_size, n_steps, shuffle, include_labels, n_epochs, ar
     )
     
     if not weight_data:
-      weights = tf.ones(tf.shape(weights))
+      weights = 1.0
       
     
     # return features and labels
