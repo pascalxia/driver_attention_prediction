@@ -202,8 +202,6 @@ def input_fn(dataset, batch_size, n_steps, shuffle, include_labels, n_epochs, ar
     
     if not weight_data:
       weights = tf.ones(tf.shape(weights))
-    else:
-      weights = tf.tile(tf.reduce_mean(weights, axis=0, keep_dims=True), [tf.shape(cameras)[0],])
       
     
     # return features and labels
