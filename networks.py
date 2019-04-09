@@ -79,10 +79,11 @@ def squeeze_encoder(image_size):
     
     return feature_net, weight_to_monitor
 
-def pure_alex_encoder(args):
+def pure_alex_encoder(target_input_size=None, no_pool5=False):  #target_input_size=[313,537] for peripheral and [185, 185] for foveal
     def feature_net(input_tensor):
-        input_tensor = tf.image.resize_bilinear(input_tensor, [313,537])
-        feature_map = AlexNet(input_tensor)
+        if target_input_size is not None:
+            input_tensor = tf.image.resize_bilinear(input_tensor, target_input_size) 
+        feature_map = AlexNet(input_tensor, no_pool5)
         return feature_map
     return feature_net
     

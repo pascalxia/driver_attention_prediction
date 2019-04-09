@@ -24,7 +24,7 @@ def conv(input, kernel, biases, k_h, k_w, c_o, s_h, s_w,  padding="VALID", group
         conv = tf.concat(output_groups, 3)          #tf.concat(3, output_groups)
     return  tf.reshape(tf.nn.bias_add(conv, biases), [-1]+conv.get_shape().as_list()[1:])
 
-def AlexNet(input_tensor):
+def AlexNet(input_tensor, no_pool5=False):
     x = input_tensor[:,:,:, ::-1]
     
     #conv1
@@ -98,6 +98,9 @@ def AlexNet(input_tensor):
     conv5_in = conv(conv4, conv5W, conv5b, k_h, k_w, c_o, s_h, s_w, padding="SAME", group=group)
     conv5 = tf.nn.relu(conv5_in)
     
+    if no_pool5:
+        return(conv5)
+        
     #maxpool5
     #max_pool(3, 3, 2, 2, padding='VALID', name='pool5')
     k_h = 3; k_w = 3; s_h = 2; s_w = 2; padding = 'VALID'
