@@ -32,7 +32,7 @@ def model_fn(features, labels, mode, params):
   predicted_time_points = features['predicted_time_points']
   
   # build up model
-  logits = networks.thick_conv_lstm_readout_net(feature_maps, 
+  logits = networks.big_conv_lstm_readout_net(feature_maps, 
                                               feature_map_size=params['feature_map_size'], 
                                               drop_rate=0.2)
   
@@ -81,7 +81,6 @@ def model_fn(features, labels, mode, params):
   quick_summaries.append(tf.summary.scalar('kl', kl[1]))
   quick_summaries.append(tf.summary.scalar('custom_cc', custom_cc[1]))
   quick_summaries.append(tf.summary.scalar('loss', loss))
-  quick_summaries.append(tf.summary.scalar('mean_weight', tf.reduce_mean(weights)))
   quick_summary_op = tf.summary.merge(quick_summaries, name='quick_summary')
   quick_summary_hook = tf.train.SummarySaverHook(
     params['quick_summary_period'],
