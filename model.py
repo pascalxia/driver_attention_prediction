@@ -1,6 +1,7 @@
 import tensorflow as tf 
 import networks
 import numpy as np
+import keras.layers as layers
 
 import pdb
 
@@ -13,21 +14,25 @@ def model_fn(features, labels, mode, params):
   camera_input = tf.reshape(camera_input, 
                             [-1, params['camera_size'][0], params['camera_size'][1], 3])
   camera_input = camera_input - [123.68, 116.79, 103.939]
-  weights = features['weights']
-  weights = tf.reshape(weights, (-1,))
   
   video_id = features['video_id']
   predicted_time_points = features['predicted_time_points']
   
   # build up model
+  batch_size_tensor = tf.shape(cameras)[0]
+  n_steps_tensor = tf.shape(cameras)[1]
   with tf.variable_scope("encoder"):
-    readout_network = networks.pure_alex_encoder(params)
-    feature_maps = readout_network(camera_input)
-    batch_size_tensor = tf.shape(cameras)[0]
-    n_steps_tensor = tf.shape(cameras)[1]
-    feature_map_size = (int(feature_maps.get_shape()[1]), 
-                        int(feature_maps.get_shape()[2]))
-    n_channel = int(feature_maps.get_shape()[3])
+    readout_network = networks.pure_alex_encoder(no_pool5=True)
+    feature_maps = readout_network(camera_input) # shape: [batch_size*n_steps, 3, 7, 256]
+    feature_maps = layers.UpSampling2D(size=(3, 2))(feature_maps) # shape: [batch_size*n_steps, 9, 14, 256]
+    feature_maps = tf.concat([
+        feature_maps[:, :, 0:1, :],
+        feature_maps,
+        feature_maps[:, :, -1:, :],
+    ], axis=2) # shape: [batch_size*n_steps, 9, 16, 256]
+    # reshape to sequences
+    feature_map_size = feature_maps.get_shape().as_list()[1:3]
+    n_channel = feature_maps.get_shape().as_list()[3]
     feature_map_in_seqs = tf.reshape(feature_maps,
                                      [batch_size_tensor, n_steps_tensor,
                                       feature_map_size[0], feature_map_size[1],
@@ -65,7 +70,13 @@ def model_fn(features, labels, mode, params):
   
   # set up loss
   labels = tf.reshape(labels, (-1, params['gazemap_size'][0]*params['gazemap_size'][1]))
-  loss = tf.losses.softmax_cross_entropy(onehot_labels=labels, logits=logits)
+  # Ignore labels that are all-zeros
+  # labels' shape: [batch_size*n_steps, height*width]
+  label_sums = tf.reduce_sum(labels, axis=1)
+  weights = tf.cast(tf.not_equal(label_sums, 0), tf.float32)
+  loss = tf.losses.softmax_cross_entropy(
+    onehot_labels=labels, logits=logits,
+    weights=weights, reduction=tf.losses.Reduction.MEAN)
   
   # set up training
   if mode == tf.estimator.ModeKeys.TRAIN:
@@ -92,6 +103,7 @@ def model_fn(features, labels, mode, params):
   _labels = tf.maximum(labels, params['epsilon'])
   p_entropies = tf.reduce_sum(-tf.multiply(_labels, tf.log(_labels)), axis=1)
   kls = loss - p_entropies
+  kls = tf.boolean_mask(kls, tf.cast(weights, tf.bool))
   #kls = weights*kls
   kl = tf.metrics.mean(kls)
     
