@@ -43,6 +43,9 @@ def main(argv):
     'readout': args.readout,
   }
   
+  if args.visible_gpus is not None:
+    os.environ["CUDA_VISIBLE_DEVICES"] = args.visible_gpus
+  
   model = tf.estimator.Estimator(
     model_fn=model_fn,
     model_dir=args.model_dir,
@@ -73,7 +76,7 @@ def main(argv):
     os.makedirs(output_dir)
   for res in tqdm(predict_generator):
     output_path = os.path.join(output_dir, 
-      res['video_id'].decode("utf-8")+'_'+str(res['predicted_time_points'][0]).zfill(5)+'.jpg')
+      res['video_id'].decode("utf-8")+'_'+str(res['predicted_time_points'][0])+'.jpg')
     gazemap = np.reshape(res['ps'], args.gazemap_size)
     misc.imsave(output_path, gazemap)
 

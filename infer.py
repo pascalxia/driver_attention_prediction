@@ -30,11 +30,15 @@ def main(argv):
                                       log_step_count_steps=10)
     
     params = {
-        'image_size': args.image_size,
+        'camera_size': args.camera_size,
         'gazemap_size': args.gazemap_size,
         'model_dir': args.model_dir,
         'readout': args.readout,
       }
+      
+    if args.visible_gpus is not None:
+      os.environ["CUDA_VISIBLE_DEVICES"] = args.visible_gpus
+    
     model = tf.estimator.Estimator(
         model_fn=model_fn,
         model_dir=args.model_dir,
