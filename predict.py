@@ -220,7 +220,7 @@ def main(argv):
     ckpt_path = os.path.join(args.model_dir, ckpt_name)
   
   predict_generator = model.predict(
-    input_fn = lambda: input_fn('validation', 
+    input_fn = lambda: input_fn('testing', 
       batch_size=1, n_steps=None, 
       shuffle=False, include_labels=False, 
       n_epochs=1, args=args),
