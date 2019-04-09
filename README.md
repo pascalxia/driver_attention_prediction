@@ -182,3 +182,17 @@ If you want to fine-tune our model with your data, please follow the steps descr
 cp pretrained_models/model_for_finetuning/* logs/a_name_for_this_experiment/
 ```
 
+
+### Test a trained model with your testing data
+If you want to test a trained model with your testing data, please first prepare your testing data by following the steps 1 to 6 drscribed in the section `Train our model from scratch with your data`, but replace the folder name `training` or `validation` in the structions by `testing`. Then all the files related to your testing data should be under the folder `data/testing`. Then let us assume that the log files of the trained model are in the folder `logs/a_name_for_this_experiment`. Then please run the following command.
+```bash
+python predict.py \
+--data_dir=data \
+--model_dir=logs/a_name_for_this_experiment \
+--batch_size=1 \
+--feature_name=alexnet \
+--feature_map_channels=256
+```
+
+The predicted attention maps will be at `./logs/a_name_for_this_experiment/prediction_iter_*/`. The files will be named in the pattern "VideoName_TimeInMilliseconds.jpg".
+
