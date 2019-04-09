@@ -62,7 +62,7 @@ def write_one_shard(shard_idx):
                 camera = cv2.imread(os.path.join(camera_folder,seq[j]+'.jpg'))        # do not flip bgr for imencode      
                 camera = cv2.resize(
                   camera, 
-                  tuple(args.image_size[::-1]),
+                  tuple(args.camera_size[::-1]),
                   interpolation=cv2.INTER_LINEAR
                 )
                 camera = cv2.imencode('.jpg', camera)[1].tostring()                     # imencode returns tuple(bool, ndarray)
