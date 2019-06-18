@@ -42,6 +42,9 @@ def model_fn(features, labels, mode, params):
       feature_maps = layers.UpSampling2D(size=(3, 3))(feature_maps) # shape: [batch_size*n_steps, 9, 18, 1088]
       feature_maps = feature_maps[:, :, 1:17, :]  # shape: [batch_size*n_steps, 9, 16, 1088]
       feature_maps.set_shape([None, 9, 16, 1088])
+    elif params['encoder'] == 'vgg':
+      readout_network = networks.vgg_encoder()
+      feature_maps = readout_network(camera_input) # shape: [batch_size*n_steps, 9, 16, 2048]
     
     # reshape to sequences
     feature_map_size = feature_maps.get_shape().as_list()[1:3]
