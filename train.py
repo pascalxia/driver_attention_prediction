@@ -26,6 +26,7 @@ def main(argv):
   add_args.for_feature(parser)
   add_args.for_training(parser)
   add_args.for_lstm(parser)
+  add_args.for_full(parser)
   args = parser.parse_args()
   
   config = tf.estimator.RunConfig(save_summary_steps=float('inf'),
@@ -42,6 +43,7 @@ def main(argv):
     'quick_summary_period': args.quick_summary_period,
     'slow_summary_period': args.slow_summary_period,
     'readout': args.readout,
+    'encoder': args.encoder,
   }
   
   if args.visible_gpus is not None:

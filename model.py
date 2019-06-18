@@ -22,14 +22,21 @@ def model_fn(features, labels, mode, params):
   batch_size_tensor = tf.shape(cameras)[0]
   n_steps_tensor = tf.shape(cameras)[1]
   with tf.variable_scope("encoder"):
-    readout_network = networks.pure_alex_encoder(no_pool5=True)
-    feature_maps = readout_network(camera_input) # shape: [batch_size*n_steps, 3, 7, 256]
-    feature_maps = layers.UpSampling2D(size=(3, 2))(feature_maps) # shape: [batch_size*n_steps, 9, 14, 256]
-    feature_maps = tf.concat([
-        feature_maps[:, :, 0:1, :],
-        feature_maps,
-        feature_maps[:, :, -1:, :],
-    ], axis=2) # shape: [batch_size*n_steps, 9, 16, 256]
+    if params['encoder'] == 'alex':
+      readout_network = networks.pure_alex_encoder(no_pool5=True)
+      feature_maps = readout_network(camera_input) # shape: [batch_size*n_steps, 3, 7, 256]
+      feature_maps = layers.UpSampling2D(size=(3, 2))(feature_maps) # shape: [batch_size*n_steps, 9, 14, 256]
+      feature_maps = tf.concat([
+          feature_maps[:, :, 0:1, :],
+          feature_maps,
+          feature_maps[:, :, -1:, :],
+      ], axis=2) # shape: [batch_size*n_steps, 9, 16, 256]
+    elif params['encoder'] == 'inception_v3':
+      readout_network = networks.inception_v3_encoder([75, 123])
+      feature_maps = readout_network(camera_input) # shape: [batch_size*n_steps, 3, 6, 768]
+      feature_maps = layers.UpSampling2D(size=(3, 3))(feature_maps) # shape: [batch_size*n_steps, 9, 18, 768]
+      feature_maps = feature_maps[:, :, 1:17, :]  # shape: [batch_size*n_steps, 9, 16, 768]
+    
     # reshape to sequences
     feature_map_size = feature_maps.get_shape().as_list()[1:3]
     n_channel = feature_maps.get_shape().as_list()[3]

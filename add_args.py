@@ -146,7 +146,7 @@ def for_full(parser):
     args = [
     {
      'name': 'encoder',
-     'default': 'vgg',
+     'default': 'alex',
      'type': str,
      'help': 'Which encoder to use'}
     ]
