@@ -14,11 +14,14 @@ from keras.models import Model
 from keras.applications.xception import Xception
 from keras.applications.vgg19 import VGG19
 from keras.applications.inception_v3  import InceptionV3
+from keras.applications.inception_resnet_v2 import InceptionResNetV2
 import my_vgg19
 from keras.layers.merge import concatenate
 from my_squeezenet import SqueezeNet
 from my_alexnet import AlexNet, ShallowAlexNet
 from keras.layers.normalization import BatchNormalization
+
+import pdb
 
 
 
@@ -76,6 +79,17 @@ def inception_v3_encoder(target_input_size=None):
         print('Model loaded.')
         feature_net = Model(inputs=original_encoder.input, 
                             outputs=original_encoder.get_layer('mixed7').output)
+        return feature_net(input_tensor)
+    return feature_encoder
+
+def inception_res_v2_encoder(target_input_size=None):
+    def feature_encoder(input_tensor):
+        if target_input_size is not None:
+            input_tensor = tf.image.resize_bilinear(input_tensor, target_input_size) 
+        original_encoder = InceptionResNetV2(include_top=False, weights='imagenet')
+        print('Model loaded.')
+        feature_net = Model(inputs=original_encoder.input, 
+                            outputs=original_encoder.get_layer('block17_20_conv').output)
         return feature_net(input_tensor)
     return feature_encoder
 
