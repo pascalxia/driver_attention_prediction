@@ -161,7 +161,7 @@ def model_fn(features, labels, mode, params):
   quick_summaries.append(tf.summary.scalar('mean_weight', tf.reduce_mean(weights)))
   quick_summary_op = tf.summary.merge(quick_summaries, name='quick_summary')
   quick_summary_hook = tf.train.SummarySaverHook(
-    params['quick_summary_period'],
+    save_secs = params['quick_summary_period'],
     output_dir=params['model_dir'],
     summary_op=quick_summary_op
   )
@@ -187,7 +187,7 @@ def model_fn(features, labels, mode, params):
     )
   slow_summary_op = tf.summary.merge(slow_summaries, name='slow_summary')
   slow_summary_hook = tf.train.SummarySaverHook(
-    params['slow_summary_period'],
+    save_secs = params['slow_summary_period'],
     output_dir=params['model_dir'],
     summary_op=slow_summary_op
   )
