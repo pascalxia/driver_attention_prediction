@@ -13,6 +13,7 @@ import keras.layers.wrappers as wps
 from keras.models import Model
 from keras.applications.xception import Xception
 from keras.applications.vgg19 import VGG19
+from keras.applications.inception_v3  import InceptionV3
 import my_vgg19
 from keras.layers.merge import concatenate
 from my_squeezenet import SqueezeNet
@@ -66,6 +67,17 @@ def pure_vgg_encoder(image_size):
     feature_net = Model(inputs=encoder.input, 
                         outputs=feature_map_temp)
     return feature_net
+
+def inception_v3_encoder(target_input_size=None):
+    def feature_encoder(input_tensor):
+        if target_input_size is not None:
+            input_tensor = tf.image.resize_bilinear(input_tensor, target_input_size) 
+        original_encoder = InceptionV3(include_top=False, weights='imagenet')
+        print('Model loaded.')
+        feature_net = Model(inputs=original_encoder.input, 
+                            outputs=original_encoder.get_layer('mixed7').output)
+        return feature_net(input_tensor)
+    return feature_encoder
 
 def squeeze_encoder(image_size):
     encoder = SqueezeNet(input_shape=image_size + (3,))
