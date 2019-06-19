@@ -48,7 +48,7 @@ def vgg_encoder(target_input_size=None):
         if target_input_size is not None:
             input_tensor = tf.image.resize_bilinear(input_tensor, target_input_size) 
   
-        original_encoder = my_vgg19.VGG19(weights='imagenet', include_top=False)
+        original_encoder = my_vgg19.VGG19(include_top=False, weights='imagenet')
         print('Model loaded.')
     
         feature_map_temp = concatenate([original_encoder.get_layer('block5_pure_conv1').output,
@@ -62,17 +62,22 @@ def vgg_encoder(target_input_size=None):
         return feature_net(input_tensor)
     return feature_encoder
     
-def pure_vgg_encoder(image_size):
-    encoder = VGG19(weights='imagenet', include_top=False)
-    print('Model loaded.')
+def pure_vgg_encoder(target_input_size=None):
+    def feature_encoder(input_tensor):
+        if target_input_size is not None:
+            input_tensor = tf.image.resize_bilinear(input_tensor, target_input_size) 
+  
+        original_encoder = VGG19(weights='imagenet', include_top=False)
+        print('Model loaded.')
     
-    feature_map_temp = concatenate([encoder.get_layer('block4_conv1').output,
-                                    encoder.get_layer('block4_conv2').output,
-                                    encoder.get_layer('block4_conv3').output,
-                                    encoder.get_layer('block4_conv4').output], axis=3)
-    feature_net = Model(inputs=encoder.input, 
-                        outputs=feature_map_temp)
-    return feature_net
+        feature_map_temp = concatenate([original_encoder.get_layer('block4_conv1').output,
+                                        original_encoder.get_layer('block4_conv2').output,
+                                        original_encoder.get_layer('block4_conv3').output,
+                                        original_encoder.get_layer('block4_conv4').output], axis=3)
+        feature_net = Model(inputs=original_encoder.input, 
+                            outputs=feature_map_temp)
+        return feature_net(input_tensor)
+    return feature_encoder
 
 def inception_v3_encoder(target_input_size=None):
     def feature_encoder(input_tensor):
